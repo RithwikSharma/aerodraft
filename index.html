@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroDraft — SA Air Works MRO Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root {
+  /* Surfaces */
+  --bg:       #F5F7FA;
+  --panel:    #FFFFFF;
+  --card:     #FFFFFF;
+  --raised:   #F0F2F6;
+  --bdr:      #E2E6ED;
+  --bdr2:     #CDD2DB;
+  --div:      #EEF0F4;
+
+  /* Text */
+  --t1: #0F1923;
+  --t2: #4A5568;
+  --t3: #8C9BB0;
+  --t4: #BEC6D2;
+
+  /* Accent — EFIS cyan, used with restraint */
+  --cyan:  #0077CC;
+  --cd:    #005FA3;
+  --cbg:   rgba(0,119,204,0.06);
+  --cb:    rgba(0,119,204,0.16);
+
+  /* Status — standard aviation colours */
+  --green: #1A7F4B;
+  --gbg:   rgba(26,127,75,0.07);
+  --gb:    rgba(26,127,75,0.18);
+
+  --amber: #B45309;
+  --abg:   rgba(180,83,9,0.07);
+  --ab:    rgba(180,83,9,0.18);
+
+  --red:   #C53030;
+  --rbg:   rgba(197,48,48,0.07);
+  --rb:    rgba(197,48,48,0.18);
+
+  /* Typography */
+  --font:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  /* Geometry */
+  --r:  5px;
+  --r2: 9px;
+
+  /* Shadows */
+  --sh:  0 1px 3px rgba(15,25,35,0.07), 0 1px 2px rgba(15,25,35,0.04);
+  --shm: 0 4px 16px rgba(15,25,35,0.10), 0 2px 4px rgba(15,25,35,0.06);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--t1);
+  height: 100vh;
+  display: flex;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SIDEBAR ── */
+.sb {
+  width: 216px;
+  height: 100vh;
+  background: var(--panel);
+  border-right: 1px solid var(--bdr);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  transition: width .2s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  box-shadow: var(--sh);
+}
+.sb.collapsed { width: 0; overflow: hidden; }
+/* Thin cyan rule at right edge — like a lit panel seam */
+.sb::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent 10%, var(--cb) 45%, var(--cb) 55%, transparent 90%);
+  opacity: .6;
+  pointer-events: none;
+}
+
+.logo { padding: 16px 13px 12px; border-bottom: 1px solid var(--bdr); flex-shrink: 0; }
+.logo-row { display: flex; align-items: center; gap: 9px; margin-bottom: 3px; }
+.logo-name { font-size: 14.5px; font-weight: 700; letter-spacing: -.3px; color: var(--t1); }
+.logo-sub { font-family: var(--mono); font-size: 9px; color: var(--t3); letter-spacing: 1.6px; text-transform: uppercase; padding-left: 37px; }
+
+.nav { padding: 9px 7px; flex: 1; }
+.nsec { margin-bottom: 16px; }
+.nlbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 0 8px;
+  margin-bottom: 3px;
+}
+.ni {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--r);
+  cursor: pointer;
+  color: var(--t2);
+  font-size: 12.5px;
+  transition: all .13s;
+  user-select: none;
+  position: relative;
+}
+.ni:hover { background: var(--raised); color: var(--t1); }
+.ni.active { background: var(--cbg); color: var(--cyan); font-weight: 600; }
+.ni.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 22%; bottom: 22%;
+  width: 2.5px;
+  background: var(--cyan);
+  border-radius: 0 2px 2px 0;
+}
+.ni svg { width: 14px; height: 14px; flex-shrink: 0; opacity: .75; }
+.ni.active svg { opacity: 1; }
+
+.nb { margin-left: auto; font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; letter-spacing: .3px; }
+.nb-r { background: var(--rbg); color: var(--red); border: 1px solid var(--rb); }
+.nb-a { background: var(--abg); color: var(--amber); border: 1px solid var(--ab); }
+.nb-b { background: var(--cbg); color: var(--cyan); border: 1px solid var(--cb); }
+.nb-g { background: var(--gbg); color: var(--green); border: 1px solid var(--gb); }
+
+/* Heading-indicator compass rose — the signature element, stays subtle */
+.hsi { padding: 8px 0 6px; display: flex; justify-content: center; opacity: .22; }
+
+.sbfoot { padding: 8px 7px; border-top: 1px solid var(--bdr); flex-shrink: 0; }
+.orgpill {
+  display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+  border-radius: var(--r); background: var(--raised); border: 1px solid var(--bdr);
+  cursor: pointer; transition: .13s;
+}
+.orgpill:hover { border-color: var(--cb); background: var(--cbg); }
+.org-av {
+  width: 27px; height: 27px; border-radius: 5px; background: var(--cbg);
+  border: 1px solid var(--cb); color: var(--cyan); display: flex; align-items: center;
+  justify-content: center; font-family: var(--mono); font-size: 10px; font-weight: 700;
+  flex-shrink: 0; letter-spacing: -.5px;
+}
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+.topbar {
+  height: 50px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--bdr);
+  display: flex; align-items: center;
+  padding: 0 18px; gap: 11px;
+  flex-shrink: 0;
+  box-shadow: var(--sh);
+}
+.ttl { font-size: 13px; font-weight: 600; flex: 1; color: var(--t1); }
+
+.content { flex: 1; overflow-y: auto; padding: 22px; }
+.sec { display: none; }
+.sec.active { display: block; }
+.seh { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.set { font-size: 19px; font-weight: 700; letter-spacing: -.4px; color: var(--t1); }
+.ses { font-family: var(--mono); font-size: 9.5px; color: var(--t3); margin-top: 3px; letter-spacing: .5px; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: var(--r); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .13s; border: 1px solid var(--bdr2);
+  background: var(--panel); color: var(--t2); font-family: var(--font);
+  box-shadow: var(--sh);
+}
+.btn:hover { background: var(--raised); color: var(--t1); }
+.btn svg { width: 13px; height: 13px; }
+.btnp {
+  background: var(--cyan); border-color: var(--cyan); color: #fff; font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0,119,204,.25);
+}
+.btnp:hover { background: var(--cd); border-color: var(--cd); color: #fff; }
+.btng {
+  background: var(--gbg); border-color: var(--gb); color: var(--green); font-weight: 600;
+  box-shadow: none;
+}
+.btng:hover { background: rgba(26,127,75,.12); }
+.bsm { padding: 4px 8px; font-size: 11px; box-shadow: none; }
+.bgh { border-color: transparent; background: transparent; box-shadow: none; }
+.bgh:hover { background: var(--raised); border-color: transparent; }
+.bicn {
+  padding: 6px; border-radius: var(--r); border: 1px solid var(--bdr);
+  background: var(--panel); cursor: pointer; display: flex; align-items: center;
+  justify-content: center; box-shadow: var(--sh); transition: .13s;
+}
+.bicn:hover { background: var(--raised); }
+.bicn svg { width: 15px; height: 15px; color: var(--t2); }
+
+/* ── PANELS ── */
+.panel {
+  background: var(--card); border: 1px solid var(--bdr);
+  border-radius: var(--r2); overflow: hidden; box-shadow: var(--sh);
+}
+.panel:hover { border-color: var(--bdr2); }
+.ph {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 15px; border-bottom: 1px solid var(--bdr);
+  background: var(--raised);
+}
+.pt { font-size: 12px; font-weight: 600; color: var(--t1); }
+
+/* ── STAT CARDS ── */
+.sgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.sc {
+  background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2);
+  padding: 16px; transition: .2s; position: relative; overflow: hidden;
+  box-shadow: var(--sh);
+}
+/* Coloured bottom strip — the type-label convention from analogue instruments */
+.sc::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: var(--ac, var(--bdr2)); opacity: .8;
+}
+.sc.cc { --ac: var(--cyan); }
+.sc.ca { --ac: var(--amber); }
+.sc.cg { --ac: var(--green); }
+.sc.cr { --ac: var(--red); }
+.sc:hover { border-color: var(--bdr2); box-shadow: var(--shm); transform: translateY(-1px); }
+.sl { font-family: var(--mono); font-size: 9.5px; color: var(--t3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 9px; }
+.sv { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+.sv-c { color: var(--cyan); }
+.sv-g { color: var(--green); }
+.sv-a { color: var(--amber); }
+.sv-r { color: var(--red); }
+.sd { font-size: 11px; color: var(--t3); }
+.sd b { color: var(--green); font-weight: 600; }
+
+/* ── BADGES ── */
+.bdg { font-family: var(--mono); font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 3px; white-space: nowrap; letter-spacing: .3px; }
+.bg { background: var(--gbg); color: var(--green); border: 1px solid var(--gb); }
+.ba { background: var(--abg); color: var(--amber); border: 1px solid var(--ab); }
+.br { background: var(--rbg); color: var(--red); border: 1px solid var(--rb); }
+.bb { background: var(--cbg); color: var(--cyan); border: 1px solid var(--cb); }
+.bgr { background: var(--raised); color: var(--t2); border: 1px solid var(--bdr2); }
+
+/* Pulsing annunciator dot */
+.pdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+@keyframes pred {
+  0%   { box-shadow: 0 0 0 0 rgba(197,48,48,.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(197,48,48,0); }
+  100% { box-shadow: 0 0 0 0 rgba(197,48,48,0); }
+}
+
+/* ── LAYOUT ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-bottom: 16px; }
+.li { display: flex; align-items: center; gap: 10px; padding: 11px 15px; border-bottom: 1px solid var(--div); font-size: 12px; }
+.li:last-child { border-bottom: none; }
+.lim { flex: 1; min-width: 0; }
+.lit { color: var(--t1); font-weight: 500; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lis { color: var(--t3); font-size: 11px; }
+/* Load-gauge bar */
+.pb { height: 3px; background: var(--raised); border-radius: 2px; overflow: hidden; margin-top: 5px; border: 1px solid var(--bdr); }
+.pf { height: 100%; border-radius: 2px; }
+
+.tl { display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--div); font-size: 12px; }
+.tl:last-child { border-bottom: none; }
+.tld { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.tld.g { background: var(--green); }
+.tld.a { background: var(--amber); }
+.tld.b { background: var(--cyan); }
+.tld.r { background: var(--red); }
+.tlt { font-weight: 500; color: var(--t1); margin-bottom: 2px; font-size: 12px; }
+.tls { color: var(--t3); font-size: 11px; }
+
+/* ── TABLE ── */
+.dt { background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2); overflow: hidden; box-shadow: var(--sh); }
+.dt table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt th { text-align: left; padding: 9px 13px; background: var(--raised); color: var(--t3); font-family: var(--mono); font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--bdr); }
+.dt td { padding: 11px 13px; border-bottom: 1px solid var(--div); color: var(--t1); vertical-align: middle; }
+.dt tr:last-child td { border-bottom: none; }
+.dt tr:hover td { background: var(--raised); }
+.mono { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--cyan); }
+
+/* ── FORMS ── */
+.fi, .fs, .ft {
+  background: var(--panel); border: 1px solid var(--bdr2); border-radius: var(--r);
+  color: var(--t1); padding: 7px 10px; font-size: 12px; font-family: var(--font);
+  outline: none; width: 100%; transition: border-color .13s, box-shadow .13s;
+}
+.fi:focus, .fs:focus, .ft:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cbg); }
+.fi::placeholder, .ft::placeholder { color: var(--t3); }
+.fs { cursor: pointer; background: var(--panel); }
+.ft { resize: vertical; min-height: 68px; line-height: 1.5; }
+.fl { font-family: var(--mono); font-size: 9.5px; font-weight: 600; color: var(--t3); text-transform: uppercase; letter-spacing: 1.1px; margin-bottom: 4px; }
+.fg { display: flex; flex-direction: column; gap: 4px; }
+.r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+hr.dv { border: none; border-top: 1px solid var(--div); }
+
+/* ── DIGEST ── */
+.dc {
+  background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2);
+  padding: 15px; margin-bottom: 11px; position: relative; overflow: hidden;
+  box-shadow: var(--sh); transition: border-color .13s, box-shadow .13s;
+}
+.dc::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.dc.urg::before { background: var(--red); }
+.dc.act::before { background: var(--amber); }
+.dc.inf::before { background: var(--cyan); }
+.dc:hover { border-color: var(--bdr2); box-shadow: var(--shm); }
+.dc.read { opacity: .55; }
+.dref { font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--cyan); margin-bottom: 3px; letter-spacing: .4px; }
+.dtit { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--t1); }
+.dmeta { font-family: var(--mono); font-size: 9.5px; color: var(--t3); margin-top: 3px; letter-spacing: .2px; }
+.dbody { font-size: 12px; color: var(--t2); line-height: 1.65; margin: 9px 0 10px; }
+.achip { background: var(--raised); border: 1px solid var(--bdr2); border-radius: 3px; padding: 2px 7px; font-family: var(--mono); font-size: 9.5px; color: var(--cyan); }
+
+/* ── DRAFTER ── */
+.drafter-layout { display: grid; grid-template-columns: 358px 1fr; gap: 15px; align-items: start; }
+.fp { background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2); overflow: hidden; box-shadow: var(--sh); }
+.fh { padding: 11px 13px; border-bottom: 1px solid var(--bdr); background: var(--raised); display: flex; align-items: center; justify-content: space-between; }
+.fb { padding: 13px; display: flex; flex-direction: column; gap: 11px; max-height: calc(100vh - 152px); overflow-y: auto; }
+
+/* LRU mini-table */
+.lru-wrap { border: 1px solid var(--bdr); border-radius: var(--r); overflow: hidden; margin-top: 4px; }
+.lru-tbl { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.lru-tbl th { background: var(--raised); color: var(--t3); font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .8px; padding: 5px 5px; border-bottom: 1px solid var(--bdr); text-align: left; }
+.lru-tbl td { padding: 2px 3px; border-bottom: 1px solid var(--div); }
+.lru-tbl tr:last-child td { border-bottom: none; }
+.lru-tbl td input { background: transparent; border: none; outline: none; font-size: 11px; font-family: var(--font); color: var(--t1); width: 100%; padding: 3px 4px; border-radius: 3px; }
+.lru-tbl td input:focus { background: var(--cbg); }
+.lru-tbl td input::placeholder { color: var(--t4); }
+.add-row { display: inline-flex; align-items: center; gap: 3px; font-family: var(--mono); font-size: 10.5px; color: var(--cyan); cursor: pointer; margin-top: 4px; letter-spacing: .3px; }
+.add-row:hover { text-decoration: underline; }
+
+/* Generation progress — altitude tape style */
+.genprog { padding: 10px 14px; background: var(--cbg); border-bottom: 1px solid var(--cb); display: none; align-items: center; gap: 10px; }
+.genprog.show { display: flex; }
+.gpbar { flex: 1; height: 2px; background: var(--raised); border-radius: 1px; overflow: hidden; border: 1px solid var(--bdr); }
+.gpfill { height: 100%; background: var(--cyan); border-radius: 1px; transition: width .4s; width: 0%; }
+.gplbl { font-family: var(--mono); font-size: 10px; color: var(--cyan); white-space: nowrap; letter-spacing: .3px; }
+
+/* ── OUTPUT ── */
+.op { background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2); overflow: hidden; position: sticky; top: 0; box-shadow: var(--sh); }
+.oh { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--bdr); background: var(--raised); }
+.ob { min-height: 500px; max-height: calc(100vh - 208px); overflow-y: auto; }
+.empty-st { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 400px; gap: 12px; color: var(--t3); text-align: center; padding: 20px; }
+.empty-st svg { opacity: .15; width: 44px; height: 44px; }
+.empty-st p { font-size: 12px; line-height: 1.6; max-width: 220px; }
+
+/* ── SAAW REPORT — exact template format ── */
+.saaw { font-family: 'Times New Roman', Times, serif; font-size: 12.5pt; line-height: 1.8; color: #111; background: #fff; padding: 24px 28px; }
+.saaw-hdr { text-align: center; padding-bottom: 11px; border-bottom: 2.5px solid #1a56db; }
+.saaw-org { font-size: 17pt; font-weight: 700; letter-spacing: .5px; color: #000; }
+.saaw-addr { font-size: 10pt; color: #444; margin-top: 3px; line-height: 1.5; }
+.saaw-sep { border: none; border-top: 1px solid #ccc; margin: 9px 0; }
+.saaw-dtitle { font-size: 14pt; font-weight: 700; display: block; text-align: center; margin: 10px 0 4px; color: #000; }
+.saaw-did { font-size: 11.5pt; text-align: center; color: #444; margin-bottom: 6px; }
+.saaw-meta { text-align: center; font-size: 11.5pt; line-height: 2; color: #222; }
+.saaw h1 { font-family: 'Times New Roman', serif; font-size: 12.5pt; font-weight: 700; color: #000; margin: 17px 0 6px; padding: 5px 9px; background: #e8f0fe; border-left: 4px solid #1a56db; }
+.saaw p { margin-bottom: 7px; color: #111; font-size: 12pt; padding: 1px 2px; }
+.saaw ul { padding-left: 22px; margin-bottom: 8px; }
+.saaw ul li { margin-bottom: 4px; font-size: 12pt; color: #111; }
+.saaw table { width: 100%; border-collapse: collapse; font-size: 11pt; margin: 7px 0 3px; }
+.saaw table th { background: #1a56db; color: #fff; font-weight: 700; padding: 6px 9px; border: 1px solid #1447c0; text-align: center; font-size: 10.5pt; }
+.saaw table td { padding: 5px 9px; border: 1px solid #bbb; text-align: center; color: #111; }
+.saaw table td.tal { text-align: left; }
+.tcap { font-size: 10pt; color: #555; text-align: center; margin: 3px 0 10px; font-style: italic; }
+.conc { font-weight: 700; margin: 5px 0 9px; font-size: 12pt; color: #000; }
+.signoff { margin-top: 16px; border: 1px solid #ccc; border-radius: 4px; padding: 13px 15px; background: #f8f8f8; }
+.so-title { font-size: 12.5pt; font-weight: 700; margin-bottom: 9px; color: #000; }
+.so-row { display: flex; gap: 18px; margin-bottom: 7px; }
+.so-f { flex: 1; }
+.so-lbl { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.so-line { border-bottom: 1px solid #bbb; min-height: 25px; }
+.rdis { font-size: 9pt; color: #888; font-style: italic; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 12px; text-align: center; }
+.dstamp { display: inline-flex; align-items: center; gap: 5px; font-size: 9pt; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 3px; padding: 3px 10px; margin-bottom: 12px; font-family: sans-serif; }
+.pagenum { text-align: right; font-size: 9pt; color: #aaa; margin-top: 7px; border-top: 1px solid #eee; padding-top: 5px; }
+[contenteditable] { outline: none; border-radius: 2px; transition: background .1s; }
+[contenteditable]:hover { background: rgba(0,119,204,.05); }
+[contenteditable]:focus { background: #eff6ff; box-shadow: 0 0 0 2px #bfdbfe; }
+.img-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.img-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.img-item img { max-width: 155px; max-height: 110px; object-fit: contain; border-radius: 3px; border: 1px solid #ddd; }
+.img-cap { font-size: 10pt; color: #555; text-align: center; font-style: italic; font-family: 'Times New Roman', serif; }
+.img-del { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,.45); color: #fff; border: none; border-radius: 3px; width: 16px; height: 16px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+/* ── SETTINGS ── */
+.sgcards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sgcard { background: var(--card); border: 1px solid var(--bdr); border-radius: var(--r2); padding: 18px; box-shadow: var(--sh); }
+.sgcard h3 { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--t3); margin-bottom: 14px; padding-bottom: 9px; border-bottom: 1px solid var(--bdr); }
+
+/* ── AVATARS ── */
+.cav { width: 33px; height: 33px; border-radius: 7px; background: var(--cbg); border: 1px solid var(--cb); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--cyan); flex-shrink: 0; }
+
+/* ── TOAST ── */
+.tw { position: fixed; bottom: 18px; right: 18px; z-index: 999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+.toast { background: var(--panel); color: var(--t1); border: 1px solid var(--bdr2); padding: 10px 14px; border-radius: var(--r); font-size: 12px; font-weight: 500; box-shadow: var(--shm); animation: tin .2s ease; display: flex; align-items: center; gap: 8px; pointer-events: all; max-width: 290px; }
+.toast.success { border-color: var(--gb); color: var(--green); }
+.toast.error { border-color: var(--rb); color: var(--red); }
+.toast.info { border-color: var(--cb); color: var(--cyan); }
+@keyframes tin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── MODAL ── */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,25,35,.4); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+.modal-bg.show { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--bdr2); border-radius: var(--r2); width: 470px; max-width: 95vw; box-shadow: var(--shm); max-height: 90vh; display: flex; flex-direction: column; }
+.mh { padding: 14px 15px; border-bottom: 1px solid var(--bdr); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.mh h3 { font-size: 13px; font-weight: 600; color: var(--t1); }
+.mb { padding: 15px; display: flex; flex-direction: column; gap: 11px; overflow-y: auto; }
+.mf { padding: 11px 15px; border-top: 1px solid var(--bdr); display: flex; justify-content: flex-end; gap: 7px; flex-shrink: 0; }
+.mc { background: none; border: none; color: var(--t3); cursor: pointer; font-size: 20px; line-height: 1; }
+.mc:hover { color: var(--t1); }
+
+/* ── ONBOARDING ── */
+.onov { position: fixed; inset: 0; background: rgba(15,25,35,.5); z-index: 300; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.oncard { background: var(--card); border: 1px solid var(--bdr2); border-radius: 12px; width: 460px; max-width: 95vw; padding: 32px; box-shadow: var(--shm); }
+
+/* ── FILTER PILLS ── */
+.fpill { display: flex; gap: 6px; margin-bottom: 13px; flex-wrap: wrap; }
+.pill { padding: 5px 11px; border-radius: 20px; border: 1px solid var(--bdr2); background: var(--panel); font-family: var(--mono); font-size: 10px; font-weight: 600; cursor: pointer; transition: .12s; color: var(--t2); letter-spacing: .3px; box-shadow: var(--sh); }
+.pill:hover { background: var(--raised); color: var(--t1); }
+.pill.active { background: var(--cbg); border-color: var(--cb); color: var(--cyan); box-shadow: none; }
+
+/* ── LOADING ── */
+.dots { display: flex; gap: 4px; }
+.dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); animation: dp 1.2s infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dp { 0%,80%,100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bdr2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--t3); }
+</style>
+</head>
+<body>
+<nav class="sb" id="sidebar">
+<div class="logo"><div class="logo-row"><svg viewBox="0 0 28 28" fill="none" style="width:28px;height:28px;flex-shrink:0">
+  <circle cx="14" cy="14" r="13" stroke="#0077CC" stroke-width="1.4" opacity=".5"/>
+  <circle cx="14" cy="14" r="8" stroke="#0077CC" stroke-width=".7" opacity=".3"/>
+  <path d="M14 4L16 9H12L14 4Z" fill="#0077CC"/>
+  <circle cx="14" cy="14" r="2" fill="#0077CC"/>
+  <line x1="14" y1="12" x2="14" y2="5.5" stroke="#0077CC" stroke-width="1.4"/>
+  <line x1="14" y1="1" x2="14" y2="3" stroke="#0077CC" stroke-width="1" opacity=".4"/>
+  <line x1="14" y1="25" x2="14" y2="27" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+  <line x1="1" y1="14" x2="3" y2="14" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+  <line x1="25" y1="14" x2="27" y2="14" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+</svg><span class="logo-name">AeroDraft</span></div><div class="logo-sub">SA Air Works · MRO</div></div>
+<div class="nav">
+<div class="nsec"><div class="nlbl">Overview</div>
+<div class="ni active" onclick="nav('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div></div>
+<div class="nsec"><div class="nlbl">Operations</div>
+<div class="ni" onclick="nav('clients',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Clients<span class="nb nb-b" id="nb-clients">5</span></div>
+<div class="ni" onclick="nav('digest',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Reg digest<span class="nb nb-r" id="nb-digest">3</span></div></div>
+<div class="nsec"><div class="nlbl">Reports</div>
+<div class="ni" onclick="nav('drafter',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Report drafter<span class="nb nb-a">AI</span></div>
+<div class="ni" onclick="nav('history',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History<span class="nb nb-g" id="nb-history">11</span></div></div>
+<div class="nsec"><div class="nlbl">System</div>
+<div class="ni" onclick="nav('settings',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</div></div>
+</div>
+<div class="hsi"><svg viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:70px;height:70px">
+  <circle cx="35" cy="35" r="33" stroke="#0077CC" stroke-width=".9"/>
+  <circle cx="35" cy="35" r="26" stroke="#0077CC" stroke-width=".5" opacity=".6"/>
+  <circle cx="35" cy="35" r="18" stroke="#0077CC" stroke-width=".5" opacity=".4"/>
+  <circle cx="35" cy="35" r="3" fill="#0077CC"/>
+  <!-- N pointer — white/cyan filled -->
+  <path d="M35 8 L37.5 15 L35 13 L32.5 15 Z" fill="#0077CC"/>
+  <!-- S pointer — hollow -->
+  <path d="M35 62 L32.5 55 L35 57 L37.5 55 Z" stroke="#0077CC" stroke-width=".8" fill="none" opacity=".5"/>
+  <!-- Cardinal ticks -->
+  <line x1="35" y1="2" x2="35" y2="6" stroke="#0077CC" stroke-width="1.2"/>
+  <line x1="35" y1="64" x2="35" y2="68" stroke="#0077CC" stroke-width=".8" opacity=".5"/>
+  <line x1="2" y1="35" x2="6" y2="35" stroke="#0077CC" stroke-width=".8" opacity=".5"/>
+  <line x1="64" y1="35" x2="68" y2="35" stroke="#0077CC" stroke-width=".8" opacity=".5"/>
+  <!-- 30-degree ticks -->
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(30 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(60 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(120 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(150 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(210 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(240 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(300 35 35)"/>
+  <line x1="35" y1="2" x2="35" y2="5" stroke="#0077CC" stroke-width=".6" opacity=".4" transform="rotate(330 35 35)"/>
+  <!-- Heading labels -->
+  <text x="32.5" y="13.5" fill="#0077CC" font-size="5.5" font-family="monospace" font-weight="700">N</text>
+  <text x="32.5" y="62" fill="#0077CC" font-size="5.5" font-family="monospace" opacity=".5">S</text>
+  <text x="5" y="37" fill="#0077CC" font-size="5.5" font-family="monospace" opacity=".5">W</text>
+  <text x="61" y="37" fill="#0077CC" font-size="5.5" font-family="monospace" opacity=".5">E</text>
+</svg></div>
+<div class="sbfoot"><div class="orgpill" onclick="nav('settings',document.querySelectorAll('.ni')[5])">
+<div class="org-av" id="org-av">SA</div><div><div style="font-size:12px;font-weight:600;color:var(--t1)" id="org-name-display">SA Air Works</div><div style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.5px;margin-top:2px" id="org-role-display">GURGAON · DGCA</div></div>
+</div></div>
+</nav>
+<div class="main">
+<div class="topbar">
+<button class="bicn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+<div class="ttl" id="tbar">Dashboard</div>
+<div style="display:flex;gap:7px;align-items:center">
+<div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:1px"><div class="pdot" style="background:var(--green);animation:pred 3s infinite"></div>FEED LIVE</div>
+<button class="btn bsm" onclick="loadDemo()" style="font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:#a78bfa;border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.07)">▶ DEMO</button>
+<button class="btn bsm btnp" onclick="nav('drafter',document.querySelectorAll('.ni')[3])" style="font-family:var(--mono);font-size:10px;letter-spacing:.5px">+ NEW REPORT</button>
+</div></div>
+<div class="content">
+<div class="sec active" id="s-dashboard">
+<div class="seh"><div><div class="set">Good morning, <span id="dash-name">Rithwik</span></div><div class="ses">SA AIR WORKS · <span id="dash-date"></span></div></div><button class="btn bsm" onclick="nav('digest',document.querySelectorAll('.ni')[2])">View reg digest →</button></div>
+<div class="sgrid"><div class="sc cc"><div class="sl">Active clients</div><div class="sv sv-c" id="stat-clients">5</div><div class="sd"><b>+1</b> this month</div></div><div class="sc ca"><div class="sl">Open ADs</div><div class="sv sv-a">3</div><div class="sd">2 action &lt;30d</div></div><div class="sc cg"><div class="sl">Reports drafted</div><div class="sv sv-g" id="stat-reports">11</div><div class="sd"><b>+3</b> this month</div></div><div class="sc ca"><div class="sl">DGCA pending</div><div class="sv sv-a">2</div><div class="sd">Avg 18 day t/a</div></div></div>
+<div class="two-col">
+<div class="panel"><div class="ph"><div class="pt">Recent activity</div><button class="btn bsm bgh" onclick="nav('history',document.querySelectorAll('.ni')[4])">All →</button></div><div id="activity-feed"><div class="tl"><div class="tld g"></div><div><div class="tlt">TIR drafted — VT-ABC, Cessna 152</div><div class="tls">GNC 255A upgrade · 3h ago</div></div></div><div class="tl"><div class="tld b"></div><div><div class="tlt">Client added — Skyview Aviation</div><div class="tls">2 aircraft registered · yesterday</div></div></div><div class="tl"><div class="tld r"></div><div><div class="tlt">DGCA AD 2026-08-11 — urgent action</div><div class="tls">Affects VT-ABC, VT-LUX · 2d ago</div></div></div><div class="tl"><div class="tld g"></div><div><div class="tlt">Report approved — VT-LUX GTX 335</div><div class="tls">DGCA approved · 3d ago</div></div></div><div class="tl"><div class="tld b"></div><div><div class="tlt">Reg feed refreshed — 3 new items</div><div class="tls">DGCA, EASA · 4d ago</div></div></div></div></div>
+<div class="panel"><div class="ph"><div class="pt">Action required</div><div style="display:flex;align-items:center;gap:6px"><div class="pdot" style="background:var(--red);animation:pred 2s infinite"></div><span class="bdg br">2 urgent</span></div></div><div class="li"><div class="lim"><div class="lit" style="font-family:var(--mono);font-size:11px">DGCA AD 2026-08-11</div><div class="lis">Fuel vent · VT-ABC, VT-LUX</div><div class="pb"><div class="pf" style="width:22%;background:var(--red);box-shadow:0 0 4px var(--red)"></div></div></div><span class="bdg br">12d</span></div><div class="li"><div class="lim"><div class="lit" style="font-family:var(--mono);font-size:11px">EASA AD 2026-0031</div><div class="lis">Gear actuator · VT-LUX</div><div class="pb"><div class="pf" style="width:50%;background:var(--amber)"></div></div></div><span class="bdg ba">26d</span></div><div class="li"><div class="lim"><div class="lit" style="font-family:var(--mono);font-size:11px">FAA AD 2026-15-04</div><div class="lis">Fuel selector · VT-SKY</div><div class="pb"><div class="pf" style="width:67%;background:var(--amber)"></div></div></div><span class="bdg ba">35d</span></div></div>
+</div>
+<div class="two-col">
+<div class="panel"><div class="ph"><div class="pt">Fleet compliance</div></div><div class="li"><div style="width:31px;height:31px;border-radius:6px;background:var(--gbg);border:1px solid var(--gb);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><div class="lim"><div class="lit">Fully compliant</div><div class="lis">Flying Aces · Aero India · Himalayan</div></div><span style="font-size:22px;font-weight:800;color:var(--green);font-family:var(--mono)">3</span></div><div class="li"><div style="width:31px;height:31px;border-radius:6px;background:var(--abg);border:1px solid var(--ab);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div class="lim"><div class="lit">Action pending</div><div class="lis">Skyview Aviation · Blue Jay Aero</div></div><span style="font-size:22px;font-weight:800;color:var(--amber);font-family:var(--mono)">2</span></div></div>
+<div class="panel"><div class="ph"><div class="pt">Reports this month</div></div><div style="padding:13px 15px;display:flex;flex-direction:column;gap:9px"><div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span style="color:var(--t2)">DGCA / CAR-21</span><span style="font-family:var(--mono);font-weight:700;color:var(--cyan)">07</span></div><div class="pb"><div class="pf" style="width:70%;background:var(--cyan);box-shadow:0 0 4px rgba(0,119,204,.3)"></div></div></div><div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span style="color:var(--t2)">AD compliance</span><span style="font-family:var(--mono);font-weight:700;color:var(--cyan)">03</span></div><div class="pb"><div class="pf" style="width:30%;background:var(--cyan)"></div></div></div><div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span style="color:var(--t2)">Repair investigations</span><span style="font-family:var(--mono);font-weight:700;color:var(--cyan)">01</span></div><div class="pb"><div class="pf" style="width:10%;background:var(--cyan)"></div></div></div><div style="margin-top:4px;padding-top:9px;border-top:1px solid var(--bdr);display:flex;justify-content:space-between"><span style="font-family:var(--mono);font-size:9.5px;color:var(--t3);letter-spacing:.5px">AVG GEN TIME</span><span style="font-family:var(--mono);font-weight:700;color:var(--green);font-size:12px">~22s</span></div></div></div>
+</div></div>
+<div class="sec" id="s-clients">
+<div class="seh"><div><div class="set">Clients</div><div class="ses">OPERATORS AND AIRCRAFT OWNERS UNDER SA AIR WORKS CARE</div></div><button class="btn btnp" onclick="openModal('modal-addclient')">+ Add client</button></div>
+<div style="margin-bottom:12px"><input class="fi" id="client-search" placeholder="Search by name, registration, or type…" oninput="filterClients()" style="max-width:340px"></div>
+<div class="dt"><table><thead><tr><th>Client / Operator</th><th>Aircraft</th><th>Open ADs</th><th>Last report</th><th>Status</th><th></th></tr></thead><tbody id="clients-tbody"></tbody></table></div>
+</div>
+<div class="sec" id="s-client-detail">
+<div class="seh"><div style="display:flex;align-items:center;gap:10px"><button class="btn bsm" onclick="nav('clients',document.querySelectorAll('.ni')[1])">← Clients</button><div><div class="set" id="cd-title">Client</div><div class="ses" id="cd-sub"></div></div></div><button class="btn bsm btnp" id="cd-draft">Draft TIR</button></div>
+<div style="display:flex;align-items:center;gap:13px;margin-bottom:15px;padding:15px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r2)" id="cd-header"></div>
+<div class="two-col"><div class="panel"><div class="ph"><div class="pt">Aircraft on file</div></div><div id="cd-aircraft"></div></div><div class="panel"><div class="ph"><div class="pt">Open airworthiness directives</div></div><div id="cd-ads"></div></div></div>
+<div class="panel"><div class="ph"><div class="pt">Report history</div></div><div class="dt" style="border:none;box-shadow:none"><table><thead><tr><th>Doc ID</th><th>Investigation</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="cd-reports"></tbody></table></div></div>
+</div>
+<div class="sec" id="s-digest">
+<div class="seh"><div><div class="set">Regulatory digest</div><div class="ses">AUTO-INGESTED FROM DGCA · EASA · FAA — REFRESHED DAILY</div></div><button class="btn bsm" onclick="toast('Feed refreshed — no new items','info')">↺ Refresh</button></div>
+<div class="fpill"><span class="pill active" onclick="filterDigest('all',this)">All (5)</span><span class="pill" onclick="filterDigest('urg',this)">● Urgent (2)</span><span class="pill" onclick="filterDigest('act',this)">● Action (1)</span><span class="pill" onclick="filterDigest('inf',this)">● Info (2)</span><span class="pill" onclick="filterDigest('unread',this)">Unread only</span></div>
+<div id="digest-list"></div>
+</div>
+<div class="sec" id="s-drafter">
+<div class="seh"><div><div class="set">Report drafter</div><div class="ses">AI GENERATES EXACT SA AIR WORKS TIR FORMAT · FULLY EDITABLE · PRINT TO PDF</div></div></div>
+<div class="drafter-layout">
+<div class="fp"><div class="fh"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:var(--t3)">INVESTIGATION PARAMETERS</div><button class="btn bsm" onclick="clearForm()" style="font-size:10px">Clear</button></div><div class="fb">
+<div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="api-key" type="password" placeholder="sk-…  (or save in Settings)"></div>
+<div class="fg"><div class="fl">AI model</div><select class="fs" id="ai-model"><option value="gpt-4o-mini">gpt-4o-mini — fast, recommended</option><option value="gpt-4o">gpt-4o — most thorough</option><option value="gpt-3.5-turbo">gpt-3.5-turbo — cheapest</option></select></div>
+<hr class="dv">
+<div class="fg"><div class="fl">Report type</div><select class="fs" id="rt"><option value="upgrade">Equipment upgrade / avionics replacement</option><option value="repair">Repair investigation</option><option value="ad">AD compliance report</option><option value="other">Other modification</option></select></div>
+<div class="fg"><div class="fl">Client / operator</div><input class="fi" id="f-client" placeholder="e.g. Flying Aces Club"></div>
+<div class="r2"><div class="fg"><div class="fl">Registration</div><input class="fi" id="f-reg" placeholder="VT-ABC" style="font-family:var(--mono)"></div><div class="fg"><div class="fl">Serial no.</div><input class="fi" id="f-sn" placeholder="15285162" style="font-family:var(--mono)"></div></div>
+<div class="fg"><div class="fl">Aircraft type</div><input class="fi" id="f-actype" placeholder="e.g. Cessna 152"></div>
+<div class="fg"><div class="fl">Inspection location</div><input class="fi" id="f-loc" value="SA Air Works, Gurgaon"></div>
+<hr class="dv">
+<div class="fg"><div class="fl">Objective</div><textarea class="ft" id="f-obj" placeholder="To study the feasibility of upgrade of the [Aircraft] requested by [Client] for installing [Equipment] for [purpose]…"></textarea></div>
+<div class="fg"><div class="fl">LRUs to be removed</div><div class="lru-wrap"><table class="lru-tbl"><thead><tr><th>#</th><th>Description</th><th>OEM</th><th>P/N</th><th>Qty</th><th>Dims</th><th>V</th><th>A</th><th>Wt</th><th></th></tr></thead><tbody id="rm-body"><tr><td style="width:16px;text-align:center;color:var(--t3);font-family:var(--mono);font-size:9px">1</td><td><input placeholder="e.g. RT-385A NAV/COMM"></td><td><input placeholder="ARC"></td><td><input placeholder="46660-1000"></td><td><input placeholder="1" style="width:22px"></td><td><input placeholder='2.4"×2.4"'></td><td><input placeholder="28"></td><td><input placeholder="4.0"></td><td><input placeholder="0.9"></td><td><button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 2px" onclick="delRow(this)">×</button></td></tr></tbody></table></div><span class="add-row" onclick="addRow('rm-body')">+ add row</span></div>
+<div class="fg"><div class="fl">LRUs to be installed</div><div class="lru-wrap"><table class="lru-tbl"><thead><tr><th>#</th><th>Description</th><th>OEM</th><th>P/N</th><th>Qty</th><th>Dims</th><th>V</th><th>A</th><th>Wt</th><th></th></tr></thead><tbody id="add-body"><tr><td style="width:16px;text-align:center;color:var(--t3);font-family:var(--mono);font-size:9px">1</td><td><input placeholder="e.g. Garmin GNC 255A"></td><td><input placeholder="Garmin"></td><td><input placeholder="011-02807-00"></td><td><input placeholder="1" style="width:22px"></td><td><input placeholder='1.65"×6.25"'></td><td><input placeholder="28"></td><td><input placeholder="0.28"></td><td><input placeholder="1.8"></td><td><button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 2px" onclick="delRow(this)">×</button></td></tr></tbody></table></div><span class="add-row" onclick="addRow('add-body')">+ add row</span></div>
+<div class="fg"><div class="fl">STC / manual reference</div><input class="fi" id="f-stc" placeholder="e.g. Garmin 190-01182-02 Rev F · STC SA2725SW"></div>
+<div class="fg"><div class="fl">ATA chapter</div><input class="fi" id="f-ata" placeholder="e.g. ATA 23 — Communications"></div>
+<div class="fg"><div class="fl">Installation location</div><input class="fi" id="f-instloc" placeholder="e.g. Instrument panel radio stack, same slot as removed unit"></div>
+<div class="fg"><div class="fl">Additional notes</div><textarea class="ft" id="f-notes" placeholder="Wiring, panel mods, approval basis, special considerations…" style="min-height:48px"></textarea></div>
+<button class="btn btnp" style="width:100%;justify-content:center;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px" onclick="generate()" id="gen-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>GENERATE REPORT</button>
+<div style="font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;letter-spacing:.7px">⌘+ENTER · DRAFT ONLY · ENGINEER MUST REVIEW AND SIGN</div>
+</div></div>
+<div class="op"><div class="oh"><div class="pt" style="font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:var(--t2)">TYPE INVESTIGATION REPORT — DRAFT</div>
+<div id="out-acts" style="display:none;gap:6px;align-items:center"><label class="btn bsm" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>Add image<input type="file" accept="image/*" multiple style="display:none" onchange="addImages(event)"></label>
+<button class="btn bsm btng" onclick="saveToHistory()" id="save-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>Save</button>
+<button class="btn bsm" onclick="printReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF</button></div></div>
+<div class="genprog" id="gen-progress"><div class="gpbar"><div class="gpfill" id="gpfill"></div></div><div class="gplbl" id="gplbl">Connecting…</div></div>
+<div class="ob" id="out-body"><div class="empty-st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg><p>Fill in the investigation parameters and click Generate. Output matches the SA Air Works TIR template exactly.</p></div></div>
+</div></div></div>
+<div class="sec" id="s-history">
+<div class="seh"><div><div class="set">Report history</div><div class="ses">ALL DRAFTED AND SUBMITTED TYPE INVESTIGATION REPORTS</div></div><button class="btn bsm" onclick="clearHistory()">Clear all</button></div>
+<div class="dt"><table><thead><tr><th>Document ID</th><th>Client</th><th>Aircraft</th><th>Investigation</th><th>Engineer</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="history-tbody"></tbody></table></div>
+</div>
+<div class="sec" id="s-settings">
+<div class="seh"><div><div class="set">Settings</div><div class="ses">ORGANISATION · API CONFIGURATION · PREFERENCES</div></div><button class="btn btnp" onclick="saveSettings()">Save settings</button></div>
+<div class="sgcards"><div class="sgcard"><h3>Organisation</h3><div style="display:flex;flex-direction:column;gap:10px">
+<div class="fg"><div class="fl">Organisation name</div><input class="fi" id="s-orgname" placeholder="SA Air Works"></div>
+<div class="fg"><div class="fl">Address line 1</div><input class="fi" id="s-addr1" placeholder="Kalyani House, Plot No. 40, Sector 18"></div>
+<div class="fg"><div class="fl">Address line 2</div><input class="fi" id="s-addr2" placeholder="Gurgaon, Haryana"></div>
+<div class="fg"><div class="fl">Phone</div><input class="fi" id="s-phone" placeholder="Ph. 1234567890"></div>
+<div class="fg"><div class="fl">Website</div><input class="fi" id="s-website" placeholder="www.saairworks.in"></div>
+<div class="fg"><div class="fl">Regulatory approval</div><input class="fi" id="s-approval" placeholder="DGCA Part-145 Approved"></div>
+</div></div><div class="sgcard"><h3>Engineer &amp; AI</h3><div style="display:flex;flex-direction:column;gap:10px">
+<div class="fg"><div class="fl">Default engineer name</div><input class="fi" id="s-engineer" placeholder="Rithwik Sharma"></div>
+<div class="fg"><div class="fl">Licence / AME no.</div><input class="fi" id="s-licence" placeholder="AME-XXXX-YYYY"></div>
+<div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="s-apikey" type="password" placeholder="sk-… (stored only in your browser)"></div>
+<div class="fg"><div class="fl">Default AI model</div><select class="fs" id="s-model"><option value="gpt-4o-mini">gpt-4o-mini (fast)</option><option value="gpt-4o">gpt-4o (thorough)</option><option value="gpt-3.5-turbo">gpt-3.5-turbo</option></select></div>
+<div class="fg"><div class="fl">Default inspection location</div><input class="fi" id="s-defloc" placeholder="SA Air Works, Gurgaon"></div>
+<div style="padding:10px 12px;background:var(--gbg);border:1px solid var(--gb);border-radius:var(--r);font-family:var(--mono);font-size:9.5px;color:var(--green);letter-spacing:.4px;line-height:1.7">API KEY STORED ONLY IN YOUR BROWSER — SENT DIRECTLY TO OPENAI ON GENERATE, NEVER TO ANY OTHER SERVER.</div>
+</div></div></div>
+</div>
+</div></div>
+<div class="tw" id="tw"></div>
+<div class="modal-bg" id="modal-addclient"><div class="modal"><div class="mh"><h3>Add client</h3><button class="mc" onclick="closeModal('modal-addclient')">×</button></div><div class="mb">
+<div class="fg"><div class="fl">Client / operator name</div><input class="fi" id="nc-name" placeholder="e.g. Flying Aces Club"></div>
+<div class="r2"><div class="fg"><div class="fl">City</div><input class="fi" id="nc-city" placeholder="New Delhi"></div><div class="fg"><div class="fl">Type</div><select class="fs" id="nc-type"><option>GA / training org</option><option>Charter operator</option><option>Private owner</option><option>Survey / aerial work</option><option>Flight school</option></select></div></div>
+<div class="r2"><div class="fg"><div class="fl">Registration</div><input class="fi" id="nc-reg" placeholder="VT-XXX" style="font-family:var(--mono)"></div><div class="fg"><div class="fl">Aircraft type</div><input class="fi" id="nc-actype" placeholder="Cessna 152"></div></div>
+<div class="r2"><div class="fg"><div class="fl">Serial number</div><input class="fi" id="nc-sn" placeholder="15285162" style="font-family:var(--mono)"></div><div class="fg"><div class="fl">Contact email</div><input class="fi" id="nc-email" placeholder="ops@client.in"></div></div>
+</div><div class="mf"><button class="btn" onclick="closeModal('modal-addclient')">Cancel</button><button class="btn btnp" onclick="addClient()">Add client</button></div></div></div>
+<div class="modal-bg" id="modal-view-report"><div class="modal" style="width:700px;max-width:96vw"><div class="mh"><h3 id="vr-title" style="font-family:var(--mono);font-size:10.5px;letter-spacing:.5px"></h3><button class="mc" onclick="closeModal('modal-view-report')">×</button></div><div class="mb" style="padding:0"><div id="vr-body" style="padding:16px;font-size:12px;color:var(--t2);line-height:1.6;max-height:65vh;overflow-y:auto;background:var(--void)"></div></div><div class="mf"><button class="btn" onclick="closeModal('modal-view-report')">Close</button><button class="btn btnp" onclick="printContent(document.getElementById('vr-body').innerHTML)">Print / PDF</button></div></div></div>
+<div class="onov" id="onboard" style="display:none"><div class="oncard">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:22px"><svg viewBox="0 0 28 28" fill="none" style="width:28px;height:28px;flex-shrink:0">
+  <circle cx="14" cy="14" r="13" stroke="#0077CC" stroke-width="1.4" opacity=".5"/>
+  <circle cx="14" cy="14" r="8" stroke="#0077CC" stroke-width=".7" opacity=".3"/>
+  <path d="M14 4L16 9H12L14 4Z" fill="#0077CC"/>
+  <circle cx="14" cy="14" r="2" fill="#0077CC"/>
+  <line x1="14" y1="12" x2="14" y2="5.5" stroke="#0077CC" stroke-width="1.4"/>
+  <line x1="14" y1="1" x2="14" y2="3" stroke="#0077CC" stroke-width="1" opacity=".4"/>
+  <line x1="14" y1="25" x2="14" y2="27" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+  <line x1="1" y1="14" x2="3" y2="14" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+  <line x1="25" y1="14" x2="27" y2="14" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
+</svg><span style="font-size:18px;font-weight:700;color:var(--t1)">AeroDraft</span></div>
+<h2 style="font-size:17px;font-weight:700;margin-bottom:8px;color:var(--t1)">Set up your organisation</h2>
+<p style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8;margin-bottom:20px;letter-spacing:.7px">AI-ASSISTED TYPE INVESTIGATION REPORT DRAFTING FOR MRO ORGANISATIONS. 60 SECONDS TO SET UP.</p>
+<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:22px"><div class="fg"><div class="fl">Organisation name</div><input class="fi" id="ob-org" placeholder="SA Air Works"></div><div class="fg"><div class="fl">Your name (engineer)</div><input class="fi" id="ob-eng" placeholder="Rithwik Sharma"></div><div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="ob-key" type="password" placeholder="sk-…  (platform.openai.com/api-keys)"></div></div>
+<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="skipOnboard()">Skip for now</button><button class="btn btnp" onclick="completeOnboard()" style="font-family:var(--mono);font-size:11px;letter-spacing:.8px">GET STARTED →</button></div>
+</div></div>
+<script>
+function printReport(){printContent(document.getElementById("out-body").innerHTML)}
+function printContent(c){const w=window.open("","_blank");w.document.write(`<!DOCTYPE html><html><head><title>SA Air Works — TIR</title><style>body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.8;color:#000;padding:28px 36px}
+.saaw-hdr{text-align:center;border-bottom:2.5px solid #1a56db;padding-bottom:11px}
+.saaw-org{font-size:17pt;font-weight:700}.saaw-addr{font-size:10pt;color:#444;margin-top:3px}
+.saaw-sep{border:none;border-top:1px solid #ccc;margin:9px 0}
+.saaw-dtitle{font-size:14pt;font-weight:700;display:block;text-align:center;margin:10px 0 4px}
+.saaw-did,.saaw-meta{text-align:center;font-size:11.5pt;color:#444;line-height:2}
+h1{font-size:12.5pt;font-weight:700;margin:17px 0 6px;padding:5px 9px;background:#e8f0fe;border-left:4px solid #1a56db}
+p{margin-bottom:7px;color:#111}ul{padding-left:22px}li{margin-bottom:4px}
+table{width:100%;border-collapse:collapse;font-size:11pt;margin:7px 0 3px}
+th{background:#1a56db;color:#fff;font-weight:700;padding:6px 9px;border:1px solid #1447c0;text-align:center}
+td{padding:5px 9px;border:1px solid #bbb;text-align:center}td.tal{text-align:left}
+.tcap{font-size:10pt;color:#555;text-align:center;margin:3px 0 10px;font-style:italic}
+.conc{font-weight:700;margin:5px 0 9px}.dstamp{display:inline-block;font-size:9pt;color:#b45309;background:#fffbeb;border:1px solid #fde68a;padding:3px 10px;margin-bottom:12px}
+.signoff{border:1px solid #ccc;border-radius:4px;padding:13px;background:#f8f8f8;margin-top:16px}
+.so-title{font-weight:700;margin-bottom:9px}.so-row{display:flex;gap:18px;margin-bottom:7px}
+.so-f{flex:1}.so-lbl{font-size:9pt;color:#666;text-transform:uppercase;margin-bottom:3px}.so-line{border-bottom:1px solid #bbb;min-height:25px}
+.rdis{font-size:9pt;color:#888;font-style:italic;border-top:1px solid #ddd;padding-top:8px;margin-top:12px;text-align:center}
+.pagenum{text-align:right;font-size:9pt;color:#aaa;border-top:1px solid #eee;padding-top:5px;margin-top:7px}
+img{max-width:160px;max-height:110px;object-fit:contain;border:1px solid #ddd}
+.img-cap{font-size:10pt;color:#555;font-style:italic;text-align:center}.img-del{display:none}
+[contenteditable]{outline:none}@media print{@page{margin:2cm}body{padding:0}}</style></head><body>${c}</body></html>`);w.document.close();setTimeout(()=>w.print(),600);}
+
+
+// ── STATE ──
+const DEFCLIENTS=[
+  {id:'c1',name:'Flying Aces Club',city:'New Delhi',type:'GA / training org',reg:'VT-ABC',actype:'Cessna 152',sn:'15285162',email:'ops@flyingaces.in',ads:[],status:'active',lastReport:'23 Jun 2026'},
+  {id:'c2',name:'Skyview Aviation Pvt. Ltd.',city:'Gurugram',type:'Charter operator',reg:'VT-SKY',actype:'Piper PA-28-161',sn:'2816163',email:'ops@skyview.in',ads:['DGCA AD 2026-08-11','FAA AD 2026-15-04'],status:'pending',lastReport:'10 Jun 2026'},
+  {id:'c3',name:'Blue Jay Aero Services',city:'Chandigarh',type:'Survey / aerial work',reg:'VT-LUX',actype:'Cessna 172S',sn:'17280943',email:'maint@bluejay.in',ads:['DGCA AD 2026-08-11','EASA AD 2026-0031'],status:'pending',lastReport:'18 Jun 2026'},
+  {id:'c4',name:'Aero India Flight School',city:'Jaipur',type:'Flight school',reg:'VT-AIF',actype:'Tecnam P2002',sn:'P2002-044',email:'chief@aeroindia.in',ads:[],status:'active',lastReport:'25 Jun 2026'},
+  {id:'c5',name:'Himalayan Ventures',city:'Dehradun',type:'Private owner',reg:'VT-HVT',actype:'Beechcraft Bonanza V35B',sn:'D-9922',email:'owner@himalayan.co.in',ads:[],status:'active',lastReport:'20 Jun 2026'}
+];
+const DEFSETTINGS={orgname:'SA Air Works',addr1:'Kalyani House, Plot No. 40, Sector 18',addr2:'Gurgaon, Haryana',phone:'Ph. 1234567890',website:'www.saairworks.in',approval:'DGCA Part-145 Approved',engineer:'Rithwik Sharma',licence:'',apikey:'',model:'gpt-4o-mini',defloc:'SA Air Works, Gurgaon'};
+const DEFHISTORY=[
+  {id:'SAAW-2026-011',client:'Flying Aces Club',reg:'VT-ABC',actype:'Cessna 152',investigation:'GNC 255A NAV/COMM upgrade',engineer:'Rithwik Sharma',date:'23 Jun 2026',status:'pending',html:''},
+  {id:'SAAW-2026-010',client:'Blue Jay Aero Services',reg:'VT-LUX',actype:'Cessna 172S',investigation:'GTX 335 transponder replacement',engineer:'Rithwik Sharma',date:'18 Jun 2026',status:'approved',html:''},
+  {id:'SAAW-2026-009',client:'Skyview Aviation Pvt. Ltd.',reg:'VT-SKY',actype:'Piper PA-28-161',investigation:'ACK E-04 ELT replacement',engineer:'Rithwik Sharma',date:'10 Jun 2026',status:'approved',html:''},
+  {id:'SAAW-2026-008',client:'Aero India Flight School',reg:'VT-AIF',actype:'Tecnam P2002',investigation:'Garmin G5 EFIS installation',engineer:'Rithwik Sharma',date:'5 Jun 2026',status:'approved',html:''},
+];
+const DIGEST=[
+  {id:'d1',cls:'urg',ref:'DGCA AD 2026-08-11',title:'Fuel vent obstruction — Cessna 152 and 172 series',meta:'14 Jun 2026 · DGCA India · 12 days remaining',body:'Mandates inspection of fuel tank vent lines for obstruction following fuel starvation events. All Cessna 152/172 models. No parts required unless defect found.',affected:['VT-ABC','VT-LUX'],client:'Flying Aces Club',creg:'VT-ABC',cactype:'Cessna 152',csn:'15285162',read:false},
+  {id:'d2',cls:'urg',ref:'EASA AD 2026-0031',title:'Landing gear actuator fatigue — Cessna 172RG series',meta:'2 Jun 2026 · EASA (adopted DGCA) · 26 days remaining',body:'Inspect main gear actuator rod end bearings for fatigue cracks. Replacement mandatory if found. AMM ref: 32-30-00.',affected:['VT-LUX'],client:'Blue Jay Aero Services',creg:'VT-LUX',cactype:'Cessna 172S',csn:'17280943',read:false},
+  {id:'d3',cls:'act',ref:'FAA AD 2026-15-04',title:'Fuel selector valve detent — Cessna 172S and Piper PA-28',meta:'10 Jun 2026 · FAA · 35 days remaining',body:'Inspect fuel selector valve detent mechanism following inadvertent shutoff reports. AMM ref: 28-21-00.',affected:['VT-SKY'],client:'Skyview Aviation Pvt. Ltd.',creg:'VT-SKY',cactype:'Piper PA-28-161',csn:'2816163',read:false},
+  {id:'d4',cls:'inf',ref:'DGCA CAR-21 Amdt 2026-3',title:'Avionics modification classification — non-significant thresholds revised',meta:'1 Jun 2026 · DGCA · Effective 1 Aug 2026',body:'Standard GPS/comm replacements with STC coverage are now explicitly non-significant under CAR-21. Update procedures by 1 Aug 2026.',affected:[],client:'',read:false},
+  {id:'d5',cls:'inf',ref:'EASA NPA 2026-04',title:'Proposed Amendment — Part-21 avionics classification',meta:'5 Jun 2026 · EASA · Comment period: 60 days',body:'Proposes clarifying minor/major boundary for EFIS and ADS-B upgrades. Comment period open until 5 Aug 2026.',affected:[],client:'',read:false}
+];
+let digestItems=[...DIGEST], digestFilter='all', currentDocId=null;
+
+function ls(){try{return JSON.parse(localStorage.getItem('ad3')||'{}')}catch{return{}}}
+function ss(p){try{const s=ls();Object.assign(s,p);localStorage.setItem('ad3',JSON.stringify(s))}catch{}}
+function getClients(){return ls().clients||DEFCLIENTS}
+function getHistory(){return ls().history||DEFHISTORY}
+function getSettings(){return Object.assign({},DEFSETTINGS,ls().settings||{})}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  if(!ls().onboarded) document.getElementById('onboard').style.display='flex';
+  applySettings(getSettings());
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  renderClients(); renderHistory(); renderDigest();
+  document.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&document.getElementById('s-drafter').classList.contains('active')) generate();
+  });
+});
+
+function completeOnboard(){
+  const org=vv('ob-org')||'SA Air Works', eng=vv('ob-eng')||'Rithwik Sharma', key=vv('ob-key');
+  const s={...getSettings(),orgname:org,engineer:eng,apikey:key};
+  ss({onboarded:true,settings:s}); applySettings(s);
+  if(key) document.getElementById('api-key').value=key;
+  document.getElementById('onboard').style.display='none';
+  toast('Welcome to AeroDraft','success');
+}
+function skipOnboard(){ss({onboarded:true});document.getElementById('onboard').style.display='none';}
+
+const TITLES={dashboard:'Dashboard',clients:'Clients',digest:'Regulatory digest',drafter:'Report drafter',history:'Report history',settings:'Settings','client-detail':'Client detail'};
+function nav(id,el){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  document.getElementById('tbar').textContent=TITLES[id]||id;
+}
+
+function applySettings(s){
+  document.getElementById('org-name-display').textContent=s.orgname||'SA Air Works';
+  document.getElementById('org-role-display').textContent=(s.addr2||'Gurgaon').split(',')[0]+' · '+(s.approval||'DGCA').split(' ').slice(0,2).join(' ');
+  document.getElementById('org-av').textContent=(s.orgname||'SA').split(' ').map(w=>w[0]).slice(0,2).join('');
+  document.getElementById('dash-name').textContent=(s.engineer||'Rithwik').split(' ')[0];
+  ['orgname','addr1','addr2','phone','website','approval','engineer','licence','defloc'].forEach(k=>{const el=document.getElementById('s-'+k);if(el)el.value=s[k]||'';});
+  if(s.apikey){document.getElementById('s-apikey').value=s.apikey;const a=document.getElementById('api-key');if(a&&!a.value)a.value=s.apikey;}
+  if(s.model){document.getElementById('s-model').value=s.model;const m=document.getElementById('ai-model');if(m)m.value=s.model;}
+  if(s.defloc){const f=document.getElementById('f-loc');if(f&&f.value==='SA Air Works, Gurgaon')f.value=s.defloc;}
+}
+function saveSettings(){
+  const s={orgname:vv('s-orgname'),addr1:vv('s-addr1'),addr2:vv('s-addr2'),phone:vv('s-phone'),website:vv('s-website'),approval:vv('s-approval'),engineer:vv('s-engineer'),licence:vv('s-licence'),apikey:vv('s-apikey'),model:document.getElementById('s-model').value,defloc:vv('s-defloc')};
+  ss({settings:s}); applySettings(s);
+  if(s.apikey){const a=document.getElementById('api-key');if(a)a.value=s.apikey;}
+  toast('Settings saved','success');
+}
+
+// ── CLIENTS ──
+function renderClients(filter=''){
+  const clients=getClients().filter(c=>!filter||c.name.toLowerCase().includes(filter)||c.reg.toLowerCase().includes(filter)||c.actype.toLowerCase().includes(filter));
+  document.getElementById('clients-tbody').innerHTML=clients.map(c=>{
+    const ini=c.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+    const adb=c.ads.length===0?'<span class="bdg bg">None</span>':c.ads.length>=2?`<span class="bdg br">${c.ads.length} open</span>`:'<span class="bdg ba">1 open</span>';
+    const sb=c.status==='active'?'<span class="bdg bg">Active</span>':c.status==='pending'?'<span class="bdg ba">Action needed</span>':'<span class="bdg br">Urgent</span>';
+    return `<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="cav">${ini}</div><div><div style="font-weight:600">${c.name}</div><div style="font-size:11px;color:var(--t3);margin-top:1px">${c.city} · ${c.type}</div></div></div></td><td><span class="mono">${c.reg}</span> <span style="color:var(--t2)">${c.actype}</span></td><td>${adb}</td><td style="color:var(--t3);font-size:11.5px">${c.lastReport||'—'}</td><td>${sb}</td><td><div style="display:flex;gap:4px"><button class="btn bsm" onclick="viewClient('${c.id}')">View</button><button class="btn bsm btnp" onclick="prefill('${c.name}','${c.reg}','${c.actype}','${c.sn}')">Draft TIR</button></div></td></tr>`;
+  }).join('');
+  document.getElementById('nb-clients').textContent=getClients().length;
+  document.getElementById('stat-clients').textContent=getClients().length;
+}
+function filterClients(){renderClients(document.getElementById('client-search').value.toLowerCase())}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function addClient(){
+  const name=vv('nc-name'); if(!name){toast('Client name required','error');return;}
+  const clients=getClients();
+  const c={id:'c'+Date.now(),name,city:vv('nc-city'),type:document.getElementById('nc-type').value,reg:vv('nc-reg'),actype:vv('nc-actype'),sn:vv('nc-sn'),email:vv('nc-email'),ads:[],status:'active',lastReport:'—'};
+  clients.push(c); ss({clients}); renderClients(); closeModal('modal-addclient');
+  toast(`"${name}" added`,'success');
+  ['nc-name','nc-city','nc-reg','nc-actype','nc-sn','nc-email'].forEach(id=>{document.getElementById(id).value='';});
+}
+
+function viewClient(id){
+  const c=getClients().find(x=>x.id===id); if(!c) return;
+  const ini=c.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+  document.getElementById('cd-title').textContent=c.name;
+  document.getElementById('cd-sub').textContent=c.city+' · '+c.type;
+  document.getElementById('cd-draft').onclick=()=>prefill(c.name,c.reg,c.actype,c.sn);
+  document.getElementById('cd-header').innerHTML=`<div class="cav" style="width:44px;height:44px;font-size:14px;border-radius:9px">${ini}</div><div style="flex:1"><div style="font-size:17px;font-weight:700">${c.name}</div><div style="font-size:12px;color:var(--t2);margin-top:3px">${c.city} · ${c.type}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">${c.email||''}</div></div><div style="text-align:right"><div style="font-size:11px;color:var(--t3)">Last report</div><div style="font-weight:600;font-size:13px;margin-top:2px">${c.lastReport||'—'}</div></div>`;
+  document.getElementById('cd-aircraft').innerHTML=`<div class="li"><div style="flex:1"><div class="mono" style="font-size:13px">${c.reg}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${c.actype}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">S/N ${c.sn||'—'}</div></div>${c.ads.length===0?'<span class="bdg bg">Compliant</span>':'<span class="bdg ba">'+c.ads.length+' open AD(s)</span>'}</div>`;
+  document.getElementById('cd-ads').innerHTML=c.ads.length===0?'<div class="li" style="color:var(--t3);font-size:12px;justify-content:center;padding:16px">No open ADs</div>':c.ads.map(a=>`<div class="li"><div class="lim"><div class="lit" style="font-size:12px">${a}</div></div><span class="bdg br">Open</span></div>`).join('');
+  const reps=getHistory().filter(r=>r.client===c.name);
+  document.getElementById('cd-reports').innerHTML=reps.length===0?`<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t3);font-size:12px">No reports yet — <button class="btn bsm btnp" onclick="prefill('${c.name}','${c.reg}','${c.actype}','${c.sn}')">Draft first TIR</button></td></tr>`:reps.map(r=>`<tr><td><span class="mono">${r.id}</span></td><td style="color:var(--t2)">${r.investigation}</td><td style="color:var(--t3);font-size:11.5px">${r.date}</td><td>${r.status==='approved'?'<span class="bdg bg">Approved</span>':r.status==='pending'?'<span class="bdg ba">DGCA pending</span>':'<span class="bdg bgr">Draft</span>'}</td><td><button class="btn bsm" onclick="viewReport('${r.id}')">View</button></td></tr>`).join('');
+  nav('client-detail',null); document.querySelectorAll('.ni')[1].classList.add('active');
+}
+
+// ── DIGEST ──
+function renderDigest(){
+  let items=digestItems;
+  if(digestFilter==='urg') items=items.filter(d=>d.cls==='urg');
+  else if(digestFilter==='act') items=items.filter(d=>d.cls==='act');
+  else if(digestFilter==='inf') items=items.filter(d=>d.cls==='inf');
+  else if(digestFilter==='unread') items=items.filter(d=>!d.read);
+  document.getElementById('digest-list').innerHTML=items.map(d=>`
+    <div class="dc ${d.cls}${d.read?' read':''}">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px">
+        <div style="flex:1"><div class="dref">${d.ref}</div><div class="dtit">${d.title}</div><div class="dmeta">${d.meta}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          ${d.cls==='urg'?'<div class="pdot" style="background:var(--red);animation:pred 2s infinite"></div>':''}
+          <span class="bdg ${d.cls==='urg'?'br':d.cls==='act'?'ba':'bb'}">${d.cls==='urg'?'Urgent':d.cls==='act'?'Action':'Info'}</span>
+          ${d.read?'<span class="bdg bgr" style="font-size:9px">Read</span>':''}
+        </div>
+      </div>
+      <div class="dbody">${d.body}</div>
+      ${d.affected.length?`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t3);margin-bottom:10px"><strong style="color:var(--amber)">Affects:</strong>${d.affected.map(a=>`<span class="achip">${a}</span>`).join('')}</div>`:''}
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        ${d.client?`<button class="btn btnp bsm" onclick="prefillAD('${d.client}','${d.creg}','${d.cactype}','${d.csn}','${d.ref}','${d.title}')">Draft compliance report →</button>`:''}
+        <button class="btn bsm" onclick="markRead('${d.id}')">Mark read</button>
+      </div>
+    </div>`).join('');
+  const unread=digestItems.filter(d=>!d.read).length;
+  const el=document.getElementById('nb-digest'); el.textContent=unread||''; el.style.display=unread?'':'none';
+}
+function filterDigest(f,el){digestFilter=f;document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));if(el)el.classList.add('active');renderDigest();}
+function markRead(id){const d=digestItems.find(x=>x.id===id);if(d)d.read=true;renderDigest();toast('Marked as read');}
+
+// ── HISTORY ──
+function renderHistory(){
+  const hist=getHistory();
+  document.getElementById('history-tbody').innerHTML=hist.length===0?'<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--t3)">No reports yet.</td></tr>':hist.map(r=>`<tr><td><span class="mono">${r.id}</span></td><td style="color:var(--t2)">${r.client}</td><td><span class="mono">${r.reg}</span></td><td style="color:var(--t2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.investigation}</td><td style="color:var(--t2)">${r.engineer}</td><td style="color:var(--t3);font-size:11.5px">${r.date}</td><td>${r.status==='approved'?'<span class="bdg bg">Approved</span>':r.status==='pending'?'<span class="bdg ba">DGCA pending</span>':'<span class="bdg bgr">Draft</span>'}</td><td><div style="display:flex;gap:4px"><button class="btn bsm" onclick="viewReport('${r.id}')">View</button><button class="btn bsm" style="color:var(--red)" onclick="deleteReport('${r.id}')">Del</button></div></td></tr>`).join('');
+  document.getElementById('nb-history').textContent=hist.length;
+  document.getElementById('stat-reports').textContent=hist.length;
+}
+function viewReport(id){
+  const r=getHistory().find(x=>x.id===id); if(!r) return;
+  document.getElementById('vr-title').textContent=r.id+' — '+r.investigation;
+  document.getElementById('vr-body').innerHTML=r.html||'<div style="padding:20px;color:var(--t3);font-size:12px;text-align:center">Report content not available for reports from previous sessions.</div>';
+  document.getElementById('modal-view-report').classList.add('show');
+}
+function deleteReport(id){const hist=getHistory().filter(r=>r.id!==id);ss({history:hist});renderHistory();toast('Report deleted');}
+function clearHistory(){if(!confirm('Clear all report history?'))return;ss({history:[]});renderHistory();toast('History cleared');}
+function saveToHistory(){
+  const html=document.getElementById('out-body').innerHTML;
+  if(!html||html.includes('empty-st')) return;
+  const docId=currentDocId||('SAAW-'+new Date().getFullYear()+'-'+Math.floor(Math.random()*900+100));
+  const s=getSettings();
+  const rec={id:docId,client:vv('f-client')||'Unknown',reg:vv('f-reg')||'—',actype:vv('f-actype')||'—',investigation:(vv('f-obj')||'Investigation').slice(0,80),engineer:s.engineer||'Rithwik Sharma',date:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),status:'draft',html};
+  const hist=getHistory(); const idx=hist.findIndex(r=>r.id===docId);
+  if(idx>=0) hist[idx]=rec; else hist.unshift(rec);
+  ss({history:hist}); renderHistory(); toast(`Saved as ${docId}`,'success');
+  const sb=document.getElementById('save-btn'); sb.textContent='✓ Saved';
+  setTimeout(()=>{sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>Save';},2500);
+}
+
+// ── PROGRESS ──
+const STAGES=[{p:8,l:'Connecting…'},{p:18,l:'Drafting objective…'},{p:32,l:'Building §2.1 document table…'},{p:45,l:'Generating maintenance notes…'},{p:57,l:'Calculating electrical load delta…'},{p:68,l:'Calculating mechanical load delta…'},{p:79,l:'Writing summary sections…'},{p:89,l:'Approvals classification…'},{p:97,l:'Finalising…'},{p:100,l:'Done ✓'}];
+let ptimer;
+function startProgress(){
+  let idx=0; document.getElementById('gen-progress').classList.add('show'); setProgress(STAGES[0]);
+  ptimer=setInterval(()=>{idx=Math.min(idx+1,STAGES.length-1);setProgress(STAGES[idx]);if(idx===STAGES.length-1)clearInterval(ptimer);},2300);
+}
+function setProgress({p,l}){document.getElementById('gpfill').style.width=p+'%';document.getElementById('gplbl').textContent=l;}
+function stopProgress(){clearInterval(ptimer);document.getElementById('gen-progress').classList.remove('show');document.getElementById('gpfill').style.width='0%';}
+
+function clearForm(){
+  ['f-client','f-reg','f-sn','f-actype','f-obj','f-stc','f-ata','f-instloc','f-notes'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('f-loc').value=getSettings().defloc||'SA Air Works, Gurgaon';
+}
+
+function loadDemo(){
+  nav('drafter',document.querySelectorAll('.ni')[3]);
+  document.getElementById('f-client').value='Flying Aces Club';
+  document.getElementById('f-reg').value='VT-ABC'; document.getElementById('f-sn').value='15285162';
+  document.getElementById('f-actype').value='Cessna 152'; document.getElementById('f-loc').value='SA Air Works, Gurgaon';
+  document.getElementById('f-obj').value='To study the feasibility of upgrade of the Cessna 152 Aircraft requested by Flying Aces Club for installing Garmin GNC 255A NAV/COMM radio for training purposes.';
+  document.getElementById('f-stc').value='Garmin 190-01182-02 Rev F · STC SA2725SW';
+  document.getElementById('f-ata').value='ATA 23 — Communications';
+  document.getElementById('f-instloc').value='Instrument panel radio stack — same slot as removed ARC RT-385A unit';
+  document.getElementById('rt').value='upgrade';
+  const rm=document.querySelector('#rm-body tr').querySelectorAll('input');
+  ['RT-385A VHF NAV/COMM','ARC Avionics','46660-1000','1','2.435"×2.350"','28','4.0','0.9'].forEach((v,i)=>{if(rm[i])rm[i].value=v;});
+  const ad=document.querySelector('#add-body tr').querySelectorAll('input');
+  ['Garmin GNC 255A NAV/COMM','Garmin','011-02807-00','1','1.65"×6.25"×6.30"','28','0.28','0.82'].forEach((v,i)=>{if(ad[i])ad[i].value=v;});
+  toast('Demo loaded — GNC 255A on VT-ABC. Click Generate!','info');
+}
+
+function toast(msg,type=''){
+  const wrap=document.getElementById('tw'); const t=document.createElement('div');
+  t.className='toast '+(type||'');
+  t.innerHTML=`<span>${{success:'✓',error:'✕',info:'·'}[type]||'·'}</span><span>${msg}</span>`;
+  wrap.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3000);
+}
+function showErr(msg){
+  stopProgress();
+  document.getElementById('out-body').innerHTML=`<div style="margin:16px;padding:13px;background:var(--rbg);border:1px solid var(--rb);border-radius:6px;color:var(--red);font-size:12px;line-height:1.7">${msg}</div>`;
+}
+function vv(id){return document.getElementById(id)?.value.trim()||''}
+
+
+// ── ORIGINAL CORE LOGIC ──
+
+// ── Nav ──
+function nav(id,el){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('tbar').textContent={dashboard:'Dashboard',clients:'Clients',digest:'Regulatory digest',drafter:'Report drafter',history:'Report history'}[id]||id;
+}
+
+// ── LRU helpers ──
+function addRow(tbodyId, prefix){
+  const tb = document.getElementById(tbodyId);
+  const n = tb.rows.length+1;
+  const tr = document.createElement('tr');
+  tr.innerHTML=`<td class="td-num">${n}</td>
+    <td><input placeholder="Description"></td>
+    <td><input placeholder="OEM"></td>
+    <td><input placeholder="P/N"></td>
+    <td><input placeholder="1" style="width:28px"></td>
+    <td><input placeholder="Dims"></td>
+    <td><input placeholder="28"></td>
+    <td><input placeholder="0.0"></td>
+    <td><input placeholder="0.0"></td>
+    <td class="td-del"><button class="btn-ghost" style="color:var(--text3);cursor:pointer;border:none;font-size:14px" onclick="delRow(this)">×</button></td>`;
+  tb.appendChild(tr);
+}
+function delRow(btn){
+  const tr=btn.closest('tr');
+  if(tr.closest('tbody').rows.length>1) tr.remove();
+  renumber(tr.closest('tbody'));
+}
+function renumber(tb){Array.from(tb.rows).forEach((r,i)=>{const c=r.cells[0];if(c)c.textContent=i+1;})}
+
+function getLRUs(tbodyId){
+  return Array.from(document.getElementById(tbodyId).rows).map(r=>{
+    const inp=r.querySelectorAll('input');
+    return {desc:inp[0]?.value.trim(),oem:inp[1]?.value.trim(),pn:inp[2]?.value.trim(),
+            qty:inp[3]?.value.trim()||'1',dims:inp[4]?.value.trim(),
+            volt:inp[5]?.value.trim(),amps:inp[6]?.value.trim(),wt:inp[7]?.value.trim()};
+  }).filter(r=>r.desc);
+}
+
+// ── Prefill ──
+function prefill(client,reg,type,sn){
+  document.getElementById('f-client').value=client;
+  document.getElementById('f-reg').value=reg;
+  document.getElementById('f-actype').value=type;
+  document.getElementById('f-sn').value=sn;
+  nav('drafter',document.querySelectorAll('.ni')[3]);
+}
+function prefillAD(client,reg,type,sn,ad,obj){
+  prefill(client,reg,type,sn);
+  document.getElementById('f-stc').value=ad;
+  document.getElementById('f-obj').value=obj;
+  document.getElementById('rt').value='ad';
+}
+
+// ── Images ──
+function addImages(ev){
+  let sec=document.getElementById('img-sec');
+  if(!sec){
+    const wrap=document.querySelector('.saaw');
+    if(!wrap)return;
+    sec=document.createElement('div');
+    sec.id='img-sec';
+    sec.className='img-section';
+    sec.innerHTML='<div style="font-size:11pt;font-weight:700;margin-bottom:6px">Reference Images / Figures</div><div class="img-grid" id="img-grid"></div>';
+    document.querySelector('.saaw .signoff').before(sec);
+  }
+  const grid=document.getElementById('img-grid');
+  Array.from(ev.target.files).forEach(f=>{
+    const rd=new FileReader();
+    rd.onload=e=>{
+      const d=document.createElement('div');
+      d.className='img-item';
+      d.innerHTML=`<img src="${e.target.result}"><div class="img-caption" contenteditable="true">Figure: [caption]</div><button class="img-del" onclick="this.parentElement.remove()">×</button>`;
+      grid.appendChild(d);
+    };
+    rd.readAsDataURL(f);
+  });
+  ev.target.value='';
+}
+
+// ── Print ──
+function printReport(){
+  const c=document.getElementById('out-body').innerHTML;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>SA Air Works — Type Investigation Report</title>
+  <style>
+    body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.75;color:#000;margin:0;padding:30px 40px;max-width:800px;margin:auto}
+    .saaw-hdr{text-align:center;padding-bottom:12px;margin-bottom:0;border-bottom:2pt solid #1a56db}
+    .saaw-org{font-size:18pt;font-weight:700}
+    h1{font-size:13pt;font-weight:700;margin:18px 0 6px;padding:4px 8px;background:#e8f0fe;border-left:4px solid #1a56db}
+    p{margin-bottom:7px}ul{padding-left:22px}li{margin-bottom:4px}
+    table{width:100%;border-collapse:collapse;font-size:11pt;margin:7px 0 4px}
+    th{background:#1a56db;color:#fff;padding:6px 10px;border:1px solid #1447c0;text-align:center;font-size:10.5pt}
+    td{padding:5px 10px;border:1px solid #bbb;text-align:center}td.tal{text-align:left}
+    .conclusion{font-weight:700;margin:6px 0 10px}
+    .signoff{border:1px solid #ccc;border-radius:4px;padding:14px;background:#f8f8f8;margin-top:18px}
+    .so-row{display:flex;gap:20px;margin-bottom:8px}.so-f{flex:1}
+    .so-lbl{font-size:9pt;color:#666;text-transform:uppercase;margin-bottom:3px}
+    .so-line{border-bottom:1px solid #bbb;min-height:24px}
+    .disclaimer{font-size:9pt;color:#666;font-style:italic;border-top:1px solid #ddd;padding-top:9px;margin-top:12px;text-align:center}
+    .draft-stamp{display:inline-block;font-size:9pt;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:3px 10px;margin-bottom:12px}
+    img{max-width:180px;max-height:120px;object-fit:contain;border:1px solid #ddd;border-radius:3px}
+    .img-caption{font-size:10pt;color:#555;font-style:italic;text-align:center}
+    [contenteditable]{outline:none}
+    @media print{@page{margin:2cm}body{padding:0}}
+  </style></head><body>${c}</body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
+// ── MAIN GENERATE ──
+async function generate(){
+  const apiKey=document.getElementById('api-key').value.trim();
+  const model=document.getElementById('ai-model').value;
+  const client=document.getElementById('f-client').value.trim();
+  const reg=document.getElementById('f-reg').value.trim();
+  const actype=document.getElementById('f-actype').value.trim();
+  const sn=document.getElementById('f-sn').value.trim();
+  const loc=document.getElementById('f-loc').value.trim();
+  const obj=document.getElementById('f-obj').value.trim();
+  const stc=document.getElementById('f-stc').value.trim();
+  const ata=document.getElementById('f-ata').value.trim();
+  const instloc=document.getElementById('f-instloc').value.trim();
+  const notes=document.getElementById('f-notes').value.trim();
+  const rtype=document.getElementById('rt').value;
+  const removed=getLRUs('rm-body');
+  const installed=getLRUs('add-body');
+
+  if(!apiKey){showErr('Enter your OpenAI API key.');return;}
+  if(!client||!reg||!actype){showErr('Fill in client name, registration, and aircraft type.');return;}
+
+  const docId='SAAW-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*900)+100);
+  const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+
+  document.getElementById('out-body').innerHTML=`<div class="spin-wrap"><div class="dots"><span></span><span></span><span></span></div>Generating via ${model}…</div>`;
+  document.getElementById('out-acts').style.display='none';
+
+  // Build LRU strings for prompt
+  const rmStr=removed.length?removed.map((r,i)=>`${i+1}. Description: ${r.desc} | OEM: ${r.oem} | P/N: ${r.pn} | Qty: ${r.qty} | Dims: ${r.dims} | Voltage: ${r.volt}V | Current: ${r.amps}A | Weight: ${r.wt}kg`).join('\n'):'None specified';
+  const addStr=installed.length?installed.map((r,i)=>`${i+1}. Description: ${r.desc} | OEM: ${r.oem} | P/N: ${r.pn} | Qty: ${r.qty} | Dims: ${r.dims} | Voltage: ${r.volt}V | Current: ${r.amps}A | Weight: ${r.wt}kg`).join('\n'):'None specified';
+
+  const totalRmAmps=removed.reduce((s,r)=>s+(parseFloat(r.amps)||0),0);
+  const totalAddAmps=installed.reduce((s,r)=>s+(parseFloat(r.amps)||0),0);
+  const totalRmWt=removed.reduce((s,r)=>s+(parseFloat(r.wt)||0),0);
+  const totalAddWt=installed.reduce((s,r)=>s+(parseFloat(r.wt)||0),0);
+  const ampDelta=(totalAddAmps-totalRmAmps).toFixed(2);
+  const wtDelta=(totalAddWt-totalRmWt).toFixed(2);
+
+  const sysPrompt=`You are a senior aviation maintenance engineer at SA Air Works, Gurgaon. You write formal Type Investigation Reports for DGCA submission. Your output must be structured text that will be parsed into a specific report format. Follow instructions exactly.`;
+
+  const userPrompt=`Generate a Type Investigation Report with these EXACT section texts. Output ONLY the section content, no markdown, no asterisks, no bold markers. Use plain text with exact section labels as shown.
+
+AIRCRAFT INFO:
+- Client/Operator: ${client}
+- Aircraft Type: ${actype}  
+- Aircraft S/N: ${sn||'XXXX'}
+- Registration: ${reg}
+- Inspection at: ${loc}
+- Report type: ${rtype}
+- ATA Chapter: ${ata||'To be determined'}
+- STC/Manual Reference: ${stc||'To be verified during survey'}
+- Objective: ${obj||'To study the feasibility of the proposed modification/upgrade.'}
+- LRUs REMOVED: ${rmStr}
+- LRUs INSTALLED: ${addStr}
+- Installation location in aircraft: ${instloc||'Same location as removed equipment'}
+- Additional notes: ${notes||'None'}
+- Date: ${today}
+- Electrical delta: removed ${totalRmAmps.toFixed(2)}A, added ${totalAddAmps.toFixed(2)}A, net change: ${ampDelta}A
+- Weight delta: removed ${totalRmWt.toFixed(2)}kg, added ${totalAddWt.toFixed(2)}kg, net change: ${wtDelta}kg
+
+Now write content for each section. Format: use "SECTION:X" to mark each section. Be specific using the LRU data provided.
+
+SECTION:OBJECTIVE
+[One paragraph: "To study the feasibility of upgrade of the [Aircraft Type] Aircraft requested by [Client] for installing [new equipment] for [purpose based on objective field]." Be specific to the actual equipment.]
+
+SECTION:2.1.INTRO
+[One sentence: "The availability of the following documents are verified for:"]
+
+SECTION:2.1.1
+[List 2-4 bullet points of specific STC references applicable to this installation. If stc field mentions specific STCs, reference them. Otherwise reference plausible STCs for this type of equipment on this aircraft type. Format each as: STC [number] - [description]]
+
+SECTION:2.1.2.ROWS
+[Output as pipe-delimited rows for the installation manual table. One row per manual needed. Format: No|OEM|Title|DocumentNumber|DateOfIssue|Revision
+Include manuals for both removed and installed equipment. Example:
+1|ARC Avionics Division|RT-385A Installation Manual|5F33D405-54C1|2017-03|C
+2|Garmin|GNC 255A Pilot's Guide|190-01182-02|2015-03|F]
+
+SECTION:2.1.3
+[2 bullet points about wiring diagram availability. First: existing aircraft wiring diagram status. Second: need to incorporate new installation wiring into aircraft wiring diagram manual.]
+
+SECTION:2.1.4
+[1-2 bullet points about maintenance manual availability for the installed equipment.]
+
+SECTION:2.1.5
+[1 bullet point about Structural Repair Manual availability. State if applicable or not applicable for this type of modification.]
+
+SECTION:2.2.INTRO
+[One sentence intro to the modifications section.]
+
+SECTION:2.3.ROWS
+[Output pipe-delimited rows for electrical load table. One row per LRU (removed and added). Format: Type|Description|Voltage|Current|TotalCurrent|Units
+Use the actual data provided. Example:
+Removed|RT-385A|28|4.0|4.0|1
+Added|Garmin GNC 255A|28|0.28|0.28|1]
+
+SECTION:2.3.CONCLUSION
+[One sentence: "Conclusion: Electrical Power [reduced/increased] by [exact number] Amperes." Calculate from the delta provided.]
+
+SECTION:2.4.ROWS
+[Pipe-delimited rows for weight table. Format: Type|Description|Weight|TotalWeight|Units
+Example:
+Removed|RT-385A|0.90|0.90|1
+Added|Garmin GNC 255A|1.80|1.80|1]
+
+SECTION:2.4.CONCLUSION
+[One sentence: "Conclusion: Mechanical Load [reduced/increased] by [exact number] Kg."]
+
+SECTION:2.5
+[1-2 sentences describing proposed installation location in the aircraft. Reference Figure 1. Be specific to: ${instloc||'the instrument panel radio stack'}.]
+
+SECTION:3
+[2-3 bullet points of problems identified or to be estimated during survey. Be specific to this type of modification.]
+
+SECTION:4
+[2-3 bullet points summarizing mechanical changes or stating "To be estimated during survey" if no structural changes.]
+
+SECTION:5
+[2-3 bullet points summarizing electrical changes required.]
+
+SECTION:5.1
+[1-2 bullet points about wiring diagram status — whether new wiring diagrams need to be developed or existing ones updated.]
+
+SECTION:6.APPROVAL
+[Exactly: "Approval Required by: DGCA."]
+
+SECTION:6.CLASS
+[Exactly: "Classification: The Change has been classified as [non-Significant / Significant]."]
+
+SECTION:6.REASON
+[Exactly: "Reason for classification: [one sentence specific to this modification explaining why it is/isn't significant per CAR-21]."]`;
+
+  try{
+    const resp=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body:JSON.stringify({model,stream:true,
+        messages:[{role:'system',content:sysPrompt},{role:'user',content:userPrompt}]})
+    });
+    if(!resp.ok){const e=await resp.json();throw new Error(e.error?.message||'API error '+resp.status);}
+
+    const reader=resp.body.getReader();
+    const dec=new TextDecoder();
+    let full='';
+
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      const chunk=dec.decode(value);
+      for(const line of chunk.split('\n')){
+        if(!line.startsWith('data: ')||line==='data: [DONE]')continue;
+        try{const d=JSON.parse(line.slice(6));full+=(d.choices?.[0]?.delta?.content||'');}catch{}
+      }
+    }
+
+    renderReport(full,docId,today,client,actype,sn,reg,loc,removed,installed);
+    document.getElementById('out-acts').style.display='flex';
+
+  }catch(e){
+    showErr(e.message.includes('Failed to fetch')?'Network error — check your internet connection and API key.':'OpenAI error: '+e.message);
+  }
+}
+
+// ── Parse sections from AI output and render exact SAAW template ──
+function getSection(text, key){
+  const re=new RegExp('SECTION:'+key+'\\n([\\s\\S]*?)(?=SECTION:|$)','i');
+  const m=text.match(re);
+  return m?m[1].trim():'';
+}
+function parseBullets(text){
+  return text.split('\n').filter(l=>l.trim()).map(l=>l.replace(/^[-•*]\s*/,'')).filter(Boolean);
+}
+function parsePipeRows(text){
+  return text.split('\n').filter(l=>l.includes('|')).map(l=>l.split('|').map(c=>c.trim()));
+}
+
+function renderReport(raw,docId,today,client,actype,sn,reg,loc,removed,installed){
+  const ob=document.getElementById('out-body');
+
+  const obj=getSection(raw,'OBJECTIVE');
+  const intro21=getSection(raw,'2\\.1\\.INTRO')||getSection(raw,'2.1.INTRO');
+  const s211=getSection(raw,'2\\.1\\.1')||getSection(raw,'2.1.1');
+  const s212rows=parsePipeRows(getSection(raw,'2\\.1\\.2\\.ROWS')||getSection(raw,'2.1.2.ROWS'));
+  const s213=getSection(raw,'2\\.1\\.3')||getSection(raw,'2.1.3');
+  const s214=getSection(raw,'2\\.1\\.4')||getSection(raw,'2.1.4');
+  const s215=getSection(raw,'2\\.1\\.5')||getSection(raw,'2.1.5');
+  const s22intro=getSection(raw,'2\\.2\\.INTRO')||getSection(raw,'2.2.INTRO');
+  const s23rows=parsePipeRows(getSection(raw,'2\\.3\\.ROWS')||getSection(raw,'2.3.ROWS'));
+  const s23conc=getSection(raw,'2\\.3\\.CONCLUSION')||getSection(raw,'2.3.CONCLUSION');
+  const s24rows=parsePipeRows(getSection(raw,'2\\.4\\.ROWS')||getSection(raw,'2.4.ROWS'));
+  const s24conc=getSection(raw,'2\\.4\\.CONCLUSION')||getSection(raw,'2.4.CONCLUSION');
+  const s25=getSection(raw,'2\\.5')||getSection(raw,'2.5');
+  const s3=getSection(raw,'3');
+  const s4=getSection(raw,'4');
+  const s5=getSection(raw,'5');
+  const s51=getSection(raw,'5\\.1')||getSection(raw,'5.1');
+  const s6appr=getSection(raw,'6\\.APPROVAL')||getSection(raw,'6.APPROVAL');
+  const s6class=getSection(raw,'6\\.CLASS')||getSection(raw,'6.CLASS');
+  const s6reason=getSection(raw,'6\\.REASON')||getSection(raw,'6.REASON');
+
+  // Build LRU remove table rows from form data (ground truth) + AI descriptions
+  const rmRows=removed.length?removed.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td class="tal" contenteditable="true">${r.desc}</td>
+      <td contenteditable="true">[Image location:]</td>
+      <td contenteditable="true">${r.dims||'—'}</td>
+      <td class="tal" contenteditable="true">${r.oem}${r.pn?' '+r.pn:''}</td>
+      <td contenteditable="true">${r.qty||'1'}</td>
+    </tr>`).join('')
+  :'<tr><td colspan="6" style="color:#999;font-style:italic">None specified</td></tr>';
+
+  const addRows=installed.length?installed.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td class="tal" contenteditable="true">${r.desc}</td>
+      <td contenteditable="true">[Image location:]</td>
+      <td contenteditable="true">${r.dims||'—'}</td>
+      <td class="tal" contenteditable="true">${r.oem}${r.pn?' '+r.pn:''}</td>
+      <td contenteditable="true">${r.qty||'1'}</td>
+    </tr>`).join('')
+  :'<tr><td colspan="6" style="color:#999;font-style:italic">None specified</td></tr>';
+
+  // Electrical load table — use AI rows or fallback to form data
+  const elecRows=s23rows.length>0?s23rows.map(r=>`<tr>${r.map((c,i)=>`<td${i>=1&&i<=4?' contenteditable="true"':''}>${c}</td>`).join('')}</tr>`).join('')
+  :([...removed.map(r=>`<tr><td>Removed</td><td class="tal" contenteditable="true">${r.desc}</td><td contenteditable="true">${r.volt||'28'}</td><td contenteditable="true">${r.amps||'—'}</td><td contenteditable="true">${r.amps||'—'}</td><td contenteditable="true">${r.qty||'1'}</td></tr>`),
+     ...installed.map(r=>`<tr><td>Added</td><td class="tal" contenteditable="true">${r.desc}</td><td contenteditable="true">${r.volt||'28'}</td><td contenteditable="true">${r.amps||'—'}</td><td contenteditable="true">${r.amps||'—'}</td><td contenteditable="true">${r.qty||'1'}</td></tr>`)]).join('');
+
+  const wtRows=s24rows.length>0?s24rows.map(r=>`<tr>${r.map((c,i)=>`<td${i>=1&&i<=3?' contenteditable="true"':''}>${c}</td>`).join('')}</tr>`).join('')
+  :([...removed.map(r=>`<tr><td>Removed</td><td class="tal" contenteditable="true">${r.desc}</td><td contenteditable="true">${r.wt||'—'}</td><td contenteditable="true">${r.wt||'—'}</td><td contenteditable="true">${r.qty||'1'}</td></tr>`),
+     ...installed.map(r=>`<tr><td>Added</td><td class="tal" contenteditable="true">${r.desc}</td><td contenteditable="true">${r.wt||'—'}</td><td contenteditable="true">${r.wt||'—'}</td><td contenteditable="true">${r.qty||'1'}</td></tr>`)]).join('');
+
+  // Inst manual table
+  const manualRows=s212rows.length>0
+    ?s212rows.filter(r=>r.length>=3).map((r,i)=>`<tr><td>${i+1}</td><td class="tal" contenteditable="true">${r[1]||''}</td><td class="tal" contenteditable="true">${r[2]||''}</td><td contenteditable="true">${r[3]||''}</td><td contenteditable="true">${r[4]||''}</td><td contenteditable="true">${r[5]||''}</td></tr>`).join('')
+    :'<tr><td colspan="6" contenteditable="true" style="color:#999">Add manual details here</td></tr>';
+
+  function bullets(text){
+    const pts=parseBullets(text);
+    return pts.length?'<ul>'+pts.map(p=>`<li contenteditable="true">${p}</li>`).join('')+'</ul>':`<ul><li contenteditable="true">To be estimated during survey</li></ul>`;
+  }
+
+  ob.innerHTML=`
+<div class="saaw">
+
+  <!-- HEADER -->
+  <div class="saaw-hdr">
+    <div class="saaw-org">SA AIR WORKS</div>
+    <div class="saaw-addr">Kalyani House, Plot No. 40, Sector 18, Gurgaon<br>Haryana, Ph. 1234567890 · <a href="http://www.saairworks.in" style="color:#1a56db">www.saairworks.in</a></div>
+  </div>
+
+  <div style="text-align:center;margin-top:14px">
+    <div class="saaw-doc-title">Type Investigation Report Draft 1</div>
+    <div class="saaw-docid" contenteditable="true">Document ID: ${docId}</div>
+  </div>
+  <hr class="saaw-sep" style="margin:10px 0">
+  <div class="saaw-meta-block">
+    <div>Aircraft Type: <strong contenteditable="true">${actype}</strong></div>
+    <div>Aircraft S/N: <strong contenteditable="true">${sn||'XXXX'}</strong></div>
+    <div>Operator/Owner: <strong contenteditable="true">${client}</strong></div>
+    <div>Inspection Performed at: <strong contenteditable="true">${loc}</strong></div>
+    <div>Report Filed by: <strong contenteditable="true">Rithwik Sharma</strong></div>
+  </div>
+  <hr class="saaw-sep" style="margin:12px 0 14px">
+
+  <div class="draft-stamp">⚠ DRAFT — Not for submission without licensed engineer review and sign-off.</div>
+
+  <!-- 1. OBJECTIVE -->
+  <h1>1. Objective</h1>
+  <p contenteditable="true">${obj||'To study the feasibility of upgrade of the '+actype+' Aircraft requested by '+client+'.'}</p>
+
+  <!-- 2. WORK -->
+  <h1>2. Work</h1>
+
+  <h1>2.1 Availability of Documents</h1>
+  <p contenteditable="true">${intro21||'The availability of the following documents are verified for:'}</p>
+
+  <h1>2.1.1 Availability of Supplementary Type Certificate</h1>
+  ${bullets(s211)}
+
+  <h1>2.1.2 Availability of Installation Manual</h1>
+  <table>
+    <thead><tr><th>No.</th><th>OEM</th><th>Title</th><th>Document Number</th><th>Date of Issue</th><th>Revision</th></tr></thead>
+    <tbody>${manualRows}</tbody>
+  </table>
+  <div class="tbl-caption">Table 1: Installation Manual Details</div>
+
+  <h1>2.1.3 Availability of Aircraft Wiring Diagrams</h1>
+  ${bullets(s213)}
+
+  <h1>2.1.4 Availability of Maintenance Manual</h1>
+  ${bullets(s214)}
+
+  <h1>2.1.5 Structural Repair Manual</h1>
+  ${bullets(s215)}
+
+  <!-- 2.2 MODIFICATIONS -->
+  <h1>2.2 Aircraft Modifications</h1>
+  <p contenteditable="true">${s22intro||''}</p>
+
+  <h1>2.2.1 Identified LRUs to be removed.</h1>
+  <table>
+    <thead><tr><th>No.</th><th>Description</th><th>Image</th><th>Dimension</th><th>OEM &amp; P/N</th><th>Qty</th></tr></thead>
+    <tbody>${rmRows}</tbody>
+  </table>
+  <div class="tbl-caption">Table 2: LRUs to be removed.</div>
+
+  <h1>2.2.2 Identified LRUs to be added.</h1>
+  <table>
+    <thead><tr><th>No.</th><th>Description</th><th>Image</th><th>Dimension</th><th>OEM &amp; P/N</th><th>Qty</th></tr></thead>
+    <tbody>${addRows}</tbody>
+  </table>
+  <div class="tbl-caption">Table 3: LRUs to be added.</div>
+
+  <!-- 2.3 ELECTRICAL -->
+  <h1>2.3 Estimated Change in Electrical Load</h1>
+  <table>
+    <thead><tr><th>Type</th><th>Description</th><th>Voltage (Volts)</th><th>Current (Amps)</th><th>Total Current</th><th>Units</th></tr></thead>
+    <tbody>${elecRows}</tbody>
+  </table>
+  <div class="tbl-caption">Table 4: Change in Electrical Load</div>
+  <p class="conclusion" contenteditable="true">${s23conc||'Conclusion: Electrical Power change to be determined during survey.'}</p>
+
+  <!-- 2.4 MECHANICAL -->
+  <h1>2.4 Estimated Change in Mechanical Load</h1>
+  <table>
+    <thead><tr><th>Type</th><th>Description</th><th>Weight (Kg)</th><th>Total Weight (Kg)</th><th>Units</th></tr></thead>
+    <tbody>${wtRows}</tbody>
+  </table>
+  <div class="tbl-caption">Table 5: Change in Mechanical Load</div>
+  <p class="conclusion" contenteditable="true">${s24conc||'Conclusion: Mechanical load change to be determined during survey.'}</p>
+
+  <!-- 2.5 LOCATION -->
+  <h1>2.5 Identified Probable Location of Installation.</h1>
+  <p style="font-style:italic;color:#555;font-size:10pt">[Attach Figure 1: ${actype} Flight Deck — annotate proposed location]</p>
+  <p contenteditable="true">${s25||'Proposed location for installation is shown in Figure 1. It will be installed at the same place the removed equipment will be taken from. There is no need for further changes to design or further complications to installation.'}</p>
+
+  <!-- 3 PROBLEMS -->
+  <h1>3. Summary of the Problems Identified</h1>
+  ${bullets(s3)}
+
+  <!-- 4 MECHANICAL -->
+  <h1>4. Summary of Mechanical Changes</h1>
+  ${bullets(s4)}
+
+  <!-- 5 ELECTRICAL -->
+  <h1>5. Summary of Electrical Changes</h1>
+  ${bullets(s5)}
+
+  <h1>5.1 Wiring Diagrams</h1>
+  ${bullets(s51)}
+
+  <!-- 6 APPROVALS -->
+  <h1>6. Summary of Approvals Required</h1>
+  <div class="approval-block">
+    <p contenteditable="true">${s6appr||'Approval Required by: DGCA.'}</p>
+    <p contenteditable="true">${s6class||'Classification: The Change has been classified as non-Significant.'}</p>
+    <p contenteditable="true">${s6reason||'Reason for classification: Only a simple part replacement is being conducted with no further design or electrical changes required.'}</p>
+  </div>
+
+  <p style="margin-top:14px"><strong contenteditable="true">Type Investigation Drafted by: Rithwik Sharma</strong></p>
+
+  <!-- SIGN-OFF -->
+  <div class="signoff">
+    <div class="so-title">Type Investigation Reviewed and Approved by</div>
+    <div class="so-row">
+      <div class="so-f"><div class="so-lbl">Name (Print)</div><div class="so-line" contenteditable="true"></div></div>
+      <div class="so-f"><div class="so-lbl">Licence / AME No.</div><div class="so-line" contenteditable="true"></div></div>
+      <div class="so-f"><div class="so-lbl">Date</div><div class="so-line" contenteditable="true"></div></div>
+    </div>
+    <div class="so-row">
+      <div class="so-f"><div class="so-lbl">Signature</div><div class="so-line"></div></div>
+      <div class="so-f"><div class="so-lbl">Stamp</div><div class="so-line"></div></div>
+    </div>
+    <div style="margin-top:9px;font-size:9pt;color:#888">Report drafted by: Rithwik Sharma · AeroDraft MRO Platform · SA Air Works, Gurgaon</div>
+  </div>
+
+  <div class="page-num">2 | Page</div>
+
+  <div class="disclaimer">Disclaimer: This Document is for training purposes only. It has no legal withstanding whatsoever. All contents of this document are subject to verification by a licensed Aircraft Maintenance Engineer before submission to DGCA.</div>
+
+</div>`;
+}
+
+function showErr(msg){
+  document.getElementById('out-body').innerHTML=`<div style="margin:16px;padding:13px;background:var(--red-bg);border:1px solid var(--red-b);border-radius:8px;color:var(--red);font-size:12px;line-height:1.6">${msg}</div>`;
+}
+
+</script>
+</body></html>
