@@ -550,7 +550,7 @@ hr.dv { border: none; border-top: 1px solid var(--div); }
 <div class="seh"><div><div class="set">Report drafter</div><div class="ses">AI GENERATES EXACT SA AIR WORKS TIR FORMAT · FULLY EDITABLE · PRINT TO PDF</div></div></div>
 <div class="drafter-layout">
 <div class="fp"><div class="fh"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:var(--t3)">INVESTIGATION PARAMETERS</div><button class="btn bsm" onclick="clearForm()" style="font-size:10px">Clear</button></div><div class="fb">
-<div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="api-key" type="password" placeholder="sk-…  (or save in Settings)"></div>
+<div class="fg"><div class="fl">OpenAI API key</div><input id="api-key" type="hidden"></div>
 <div class="fg"><div class="fl">AI model</div><select class="fs" id="ai-model"><option value="gpt-4o-mini">gpt-4o-mini — fast, recommended</option><option value="gpt-4o">gpt-4o — most thorough</option><option value="gpt-3.5-turbo">gpt-3.5-turbo — cheapest</option></select></div>
 <hr class="dv">
 <div class="fg"><div class="fl">Report type</div><select class="fs" id="rt"><option value="upgrade">Equipment upgrade / avionics replacement</option><option value="repair">Repair investigation</option><option value="ad">AD compliance report</option><option value="other">Other modification</option></select></div>
@@ -595,7 +595,7 @@ hr.dv { border: none; border-top: 1px solid var(--div); }
 <div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="s-apikey" type="password" placeholder="sk-… (stored only in your browser)"></div>
 <div class="fg"><div class="fl">Default AI model</div><select class="fs" id="s-model"><option value="gpt-4o-mini">gpt-4o-mini (fast)</option><option value="gpt-4o">gpt-4o (thorough)</option><option value="gpt-3.5-turbo">gpt-3.5-turbo</option></select></div>
 <div class="fg"><div class="fl">Default inspection location</div><input class="fi" id="s-defloc" placeholder="SA Air Works, Gurgaon"></div>
-<div style="padding:10px 12px;background:var(--gbg);border:1px solid var(--gb);border-radius:var(--r);font-family:var(--mono);font-size:9.5px;color:var(--green);letter-spacing:.4px;line-height:1.7">API KEY STORED ONLY IN YOUR BROWSER — SENT DIRECTLY TO OPENAI ON GENERATE, NEVER TO ANY OTHER SERVER.</div>
+<div style="padding:10px 12px;background:var(--gbg);border:1px solid var(--gb);border-radius:var(--r);font-family:var(--mono);font-size:9.5px;color:var(--green);letter-spacing:.4px;line-height:1.7">YOUR API KEY IS SAVED IN YOUR BROWSER AND NEVER LEAVES IT — SENT ONLY TO OPENAI WHEN YOU GENERATE A REPORT.</div>
 </div></div></div>
 </div>
 </div></div>
@@ -620,7 +620,7 @@ hr.dv { border: none; border-top: 1px solid var(--div); }
   <line x1="25" y1="14" x2="27" y2="14" stroke="#0077CC" stroke-width=".8" opacity=".3"/>
 </svg><span style="font-size:18px;font-weight:700;color:var(--t1)">AeroDraft</span></div>
 <h2 style="font-size:17px;font-weight:700;margin-bottom:8px;color:var(--t1)">Set up your organisation</h2>
-<p style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8;margin-bottom:20px;letter-spacing:.7px">AI-ASSISTED TYPE INVESTIGATION REPORT DRAFTING FOR MRO ORGANISATIONS. 60 SECONDS TO SET UP.</p>
+<p style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8;margin-bottom:20px;letter-spacing:.7px">ENTER YOUR OPENAI API KEY ONCE — IT'S SAVED IN YOUR BROWSER AND NEVER SENT ANYWHERE ELSE. TAKES 30 SECONDS.</p>
 <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:22px"><div class="fg"><div class="fl">Organisation name</div><input class="fi" id="ob-org" placeholder="SA Air Works"></div><div class="fg"><div class="fl">Your name (engineer)</div><input class="fi" id="ob-eng" placeholder="Rithwik Sharma"></div><div class="fg"><div class="fl">OpenAI API key</div><input class="fi" id="ob-key" type="password" placeholder="sk-…  (platform.openai.com/api-keys)"></div></div>
 <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="skipOnboard()">Skip for now</button><button class="btn btnp" onclick="completeOnboard()" style="font-family:var(--mono);font-size:11px;letter-spacing:.8px">GET STARTED →</button></div>
 </div></div>
@@ -714,7 +714,10 @@ function applySettings(s){
   document.getElementById('org-av').textContent=(s.orgname||'SA').split(' ').map(w=>w[0]).slice(0,2).join('');
   document.getElementById('dash-name').textContent=(s.engineer||'Rithwik').split(' ')[0];
   ['orgname','addr1','addr2','phone','website','approval','engineer','licence','defloc'].forEach(k=>{const el=document.getElementById('s-'+k);if(el)el.value=s[k]||'';});
-  if(s.apikey){document.getElementById('s-apikey').value=s.apikey;const a=document.getElementById('api-key');if(a&&!a.value)a.value=s.apikey;}
+  if(s.apikey){document.getElementById('s-apikey').value=s.apikey;const a=document.getElementById('api-key');if(a)a.value=s.apikey;}
+  const ks=document.getElementById('key-status');
+  const kt=document.getElementById('key-status-text');
+  if(ks&&kt){if(s.apikey){ks.style.background='var(--gbg)';ks.style.borderColor='var(--gb)';ks.style.color='var(--green)';kt.textContent='API KEY CONFIGURED';}else{ks.style.background='var(--rbg)';ks.style.borderColor='var(--rb)';ks.style.color='var(--red)';kt.textContent='NO API KEY — ADD IN SETTINGS';}}
   if(s.model){document.getElementById('s-model').value=s.model;const m=document.getElementById('ai-model');if(m)m.value=s.model;}
   if(s.defloc){const f=document.getElementById('f-loc');if(f&&f.value==='SA Air Works, Gurgaon')f.value=s.defloc;}
 }
@@ -985,7 +988,7 @@ function printReport(){
 
 // ── MAIN GENERATE ──
 async function generate(){
-  const apiKey=document.getElementById('api-key').value.trim();
+  const apiKey=getSettings().apikey||document.getElementById('api-key')?.value?.trim()||'';
   const model=document.getElementById('ai-model').value;
   const client=document.getElementById('f-client').value.trim();
   const reg=document.getElementById('f-reg').value.trim();
