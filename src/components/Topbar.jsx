@@ -1,4 +1,4 @@
-export default function Topbar({ page, setSidebarOpen, sidebarOpen, onDemo }) {
+export default function Topbar({ page, setSidebarOpen, sidebarOpen, onDemo, onPitch }) {
   const titles = { dashboard:'Dashboard', clients:'Clients', digest:'Regulatory digest', drafter:'Report drafter', history:'Report history', settings:'Settings', 'client-detail':'Client detail' }
   return (
     <div className="topbar">
@@ -11,11 +11,14 @@ export default function Topbar({ page, setSidebarOpen, sidebarOpen, onDemo }) {
           <div className="pdot green"></div>
           FEED LIVE
         </div>
+        <button className="btn btn-sm" onClick={onPitch} style={{fontFamily:'var(--mono)',fontSize:10,letterSpacing:'.3px',color:'var(--t2)'}}>
+          Pitch deck ↗
+        </button>
         <button className="btn btn-sm btn-demo" onClick={onDemo}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:12,height:12}}><polygon points="5 3 19 12 5 21 5 3"/></svg>
           Demo mode
         </button>
-        <button className="btn btn-sm btn-p" onClick={() => location.reload()}>
+        <button className="btn btn-sm btn-p" onClick={() => window.dispatchEvent(new CustomEvent('aerodraft:newreport'))}>
           + New report
         </button>
       </div>
